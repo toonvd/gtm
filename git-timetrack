@@ -104,6 +104,37 @@ function user_time_dedication() {
     echo $total
 }
 
+function current_branch() {
+    git rev-parse --abbrev-ref HEAD
+}
+
+post_commit_hook='#!/bin/bash
+
+hacking=$(git config timetrack.hacking)
+git timetrack -p > /dev/null
+spent=$(git config timetrack.spent)
+git config --remove-section timetrack 2> /dev/null
+
+if [ $spent ]
+then
+    git notes --ref timetracker add -m "Time-spent: $spent"
+
+    if [ $hacking ]
+    then
+        git config timetrack.start $(date +%s)
+        git config timetrack.hacking $hacking
+    fi
+fi'
+
+post_merge_hook='#!/bin/bash
+
+GITDIR=$(git rev-parse --git-dir)
+for remote in $GITDIR/refs/notes/remotes/*
+do
+    git timetrack --merge "$(basename $remote)"
+done'
+
+
 case $1 in
     start|-s|--start)
         git config timetrack.start $(date +%s)
@@ -276,35 +307,13 @@ case $1 in
 
             post_commit="$hooksdir/post-commit"
 
-            echo '#!/bin/bash
-
-hacking=$(git config timetrack.hacking)
-git timetrack -p > /dev/null
-spent=$(git config timetrack.spent)
-git config --remove-section timetrack 2> /dev/null
-
-if [ $spent ]
-then
-    git notes --ref timetracker add -m "Time-spent: $spent"
-
-    if [ $hacking ]
-    then
-        git config timetrack.start $(date +%s)
-        git config timetrack.hacking $hacking
-    fi
-fi' > $post_commit
+            echo $post_commit_hook > $post_commit
 
             chmod +x $post_commit
 
             post_merge="$hooksdir/post-merge"
 
-            echo '#!/bin/bash
-
-GITDIR=$(git rev-parse --git-dir)
-for remote in $GITDIR/refs/notes/remotes/*
-do
-    git timetrack --merge "$(basename $remote)"
-done' > $post_merge
+            echo $post_merge_hook > $post_merge
 
             chmod +x $post_merge
             echo "hooks created"
@@ -348,6 +357,28 @@ done' > $post_merge
         t=$(( current_date - last ))
         git timetrack -s
         git timetrack -e $(( $t / 60 ))
+        ;;
+    task)
+        name=$2
+        [ -z "$name" ] && echo "need branch name for working on task"
+        message=$3
+        [ -z "$message" ] && echo "need description for a new task"
+
+        prefix=${name%/*}
+        labels=''
+        # if prefix is not empty
+        if [ $prefix != $name ]; then
+            labels=" -L "${prefix//\// -L }
+        fi
+
+        read -p "This command will create
+- branch with name '$name'
+- github issue with name '$message' $(if [ $prefix != $name ]; then echo and tags: ${labels// -L / }; fi)
+Do you want to continue? [y/n]" ans
+        [ "$ans" != "y" ] && exit 1
+
+        git checkout -b $name
+        ghi open  --claim  -m "$message" $labels
         ;;
     *)
         show_help
