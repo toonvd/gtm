@@ -108,41 +108,16 @@ function current_branch() {
     git rev-parse --abbrev-ref HEAD
 }
 
-post_commit_hook='#!/bin/bash
-
-hacking=$(git config timetrack.hacking)
-git timetrack -p > /dev/null
-spent=$(git config timetrack.spent)
-git config --remove-section timetrack 2> /dev/null
-
-if [ $spent ]
-then
-    git notes --ref timetracker add -m "Time-spent: $spent"
-
-    if [ $hacking ]
-    then
-        git config timetrack.start $(date +%s)
-        git config timetrack.hacking $hacking
-    fi
-fi'
-
-post_merge_hook='#!/bin/bash
-
-GITDIR=$(git rev-parse --git-dir)
-for remote in $GITDIR/refs/notes/remotes/*
-do
-    git timetrack --merge "$(basename $remote)"
-done'
-
-
 case $1 in
     start|-s|--start)
         git config timetrack.start $(date +%s)
+        git config timetrack.branch $(current_branch)
         ;;
 
     hacking|-k|--start-hacking)
         git config timetrack.start $(date +%s)
         git config timetrack.hacking "true"
+        git config timetrack.branch $(current_branch)
         ;;
 
     stop|-p|--stop)
@@ -182,12 +157,14 @@ case $1 in
     set|-e|--set)
         git config --remove-section timetrack 2>/dev/null
         git config timetrack.spent $(( $2 * 60 ))
+        git config timetrack.branch $(current_branch)
         ;;
 
     add|-g|--add)
         spent_date=$(git config --get timetrack.spent)
         if [ -z $spent_date ]; then spent_date=0; fi
         git config timetrack.spent $(( $2 * 60 + $spent_date ))
+        git config timetrack.branch $(current_branch)
         ;;
 
     timer-save|-st|--save-timer)
@@ -300,22 +277,60 @@ case $1 in
             echo "That isn't a git root directory. I wont do anything"
         else
         	hooksdir="$gitdir/hooks"
-        	if [ ! -d $hooksdir ]
-        	then 
-        		mkdir $hooksdir 
-        	fi
+        	[ ! -d $hooksdir ] && mkdir $hooksdir
+
+
 
             post_commit="$hooksdir/post-commit"
+            echo '#!/bin/bash
 
-            echo $post_commit_hook > $post_commit
+hacking=$(git config timetrack.hacking)
+git timetrack -p > /dev/null
+spent=$(git config timetrack.spent)
+git config --remove-section timetrack 2> /dev/null
 
+if [ $spent ]
+then
+    git notes --ref timetracker add -m "Time-spent: $spent"
+
+    if [ $hacking ]
+    then
+        git config timetrack.start $(date +%s)
+        git config timetrack.hacking $hacking
+    fi
+fi' > $post_commit
             chmod +x $post_commit
 
             post_merge="$hooksdir/post-merge"
+            echo '#!/bin/bash
 
-            echo $post_merge_hook > $post_merge
-
+GITDIR=$(git rev-parse --git-dir)
+for remote in $GITDIR/refs/notes/remotes/*
+do
+    git timetrack --merge "$(basename $remote)"
+done' > $post_merge
             chmod +x $post_merge
+
+            post_checkout="$hooksdir/post-checkout"
+            echo '#!/bin/bash
+
+# if branch is switched
+if [ "$3" = "1" ]; then
+    started=$(git config --get timetrack.start)
+    hack=$(git config --get timetrack.hacking)
+
+    old_branch=$(git config --get timetrack.branch)
+    git timetrack timer-save $old_branch
+
+    current_branch=$(git rev-parse --abbrev-ref HEAD)
+    git config timetrack.branch $current_branch
+    git timetrack timer-use $current_branch
+
+    [ $started ] && git timetrack start
+    [ $hack ] && git config timetrack.hacking $hack
+fi' > $post_checkout
+            chmod +x $post_checkout
+
             echo "hooks created"
         fi
         ;;
@@ -377,6 +392,7 @@ case $1 in
 Do you want to continue? [y/n]" ans
         [ "$ans" != "y" ] && exit 1
 
+        git config timetrack.branch $(current_branch)
         git checkout -b $name
         ghi open  --claim  -m "$message" $labels
         ;;
