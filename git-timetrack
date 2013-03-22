@@ -199,11 +199,12 @@ function gtt_stop() {
     spent=$(current_time)
     gtt_reset
     config_set spent $spent
+    config_set $(config_get branch).spent $spent
 }
 function gtt_current() {
     spent=$(current_time)
     if (( $spent == 0 )); then
-        echo "There's no time information :("
+        echo "timer is empty"
     else
         echo "time spent in next commit: $(human_time $spent)"
         [ $(config_get start) ]   && echo "timer counting" || echo "timer stopped"
@@ -227,8 +228,10 @@ function gtt_list_timers() {
 }
 function gtt_set() {
     gtt_reset
-    config_set spent $(( $1 * 60 ))
+    spent=$(( $1 * 60 ))
+    config_set spent $spent
     config_set branch $(current_branch)
+    config_set $(config_get branch).spent $spent
 }
 function gtt_task_new() {
     name=$2
@@ -248,10 +251,11 @@ function gtt_task_new() {
     [ "$ans" != "y" ] && exit 1
 
     config_get branch $(current_branch)
-    # git checkout -b $name
-    # git push -u origin $(current_branch)
+    git checkout -b $name
+    git push -u origin $(current_branch)
 
     [ "$issue" ] && ghi open  --claim  -m "$issue" $labels "${@:4}"
+    git commit -m "Created issue: "
 }
 
 #############
@@ -338,9 +342,8 @@ case $1 in
 
     summary|-u|--summary)
         shift
-        # allusers=$(git log --oneline --pretty="format: %an <%ae>" $* | sort | uniq)
-        allusers=$(git log --oneline --pretty="format:%ae" $* | sort | uniq)
-        alltimes=$(git log $* | grep "Time-spent:"  | cut -d":" -f2)
+        allusers=$(git log --oneline --pretty="format:%ae" "${@:1}" | sort | uniq)
+        alltimes=$(git log "${@:1}" | grep "Time-spent:"  | cut -d":" -f2)
 
         total=0
         for t in $alltimes; do
@@ -348,17 +351,15 @@ case $1 in
         done
 
         echo "total time spent by authors"
-        # printf "$allusers\n" | while read author; do
         for author in $allusers; do
-            dedication=$(user_time_dedication "$author" $*)
+            dedication=$(user_time_dedication "$author" "${@:1}")
             [ $dedication != 0 ] && printf " %-49s %s\n" "$author" "$(human_time $dedication)"
         done
 
         printf "\n%-50s %s\n" "total time spent in this project" "$(human_time $total)"
         printf "%-50s %s\n" "time spent in next comit" "$(human_time $(current_time))"
 
-        hacking=$(config_get hacking)
-        [ $hacking ] && echo "hacking mode activated"
+        [ $(config_get hacking) ] && echo "hacking mode activated"
         ;;
 
     log|-l|--log)
@@ -430,9 +431,9 @@ case $1 in
         gtt_task_new ${@:1}
         ;;
 
-    task-report)
-        gtt_task_report ${@:1}
-        ;;
+    # task-report)
+    #     gtt_task_report ${@:1}
+    #     ;;
 
     *)
         show_help
