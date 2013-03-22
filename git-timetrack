@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-set -u
+# set -u
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -19,36 +19,36 @@ echo "
 Usage: git timetrack command [options]
 
 Current timer commands:
-    start, -s, --start                start/continue counting time spent
-    hacking, -k, --start-hacking        start/continue counting time spent, won't stop (only reset) on commit
-    stop, -p, --stop                 stop/pause counting time spent
-    reset, -r, --reset                reset counting time spent
-    add, -g  --add <[-]minutes>     add (or substract) time from the timer
-    set, -e, --set <minutes>        set time spent in minutes
-    timesince, -ts, --timesince           set time spent since last commit
-    current, -c, --current              time spent currently in next commit
+    start,     -s               start/continue counting time spent
+    hacking,   -k               start/continue counting time spent, won't stop (only reset) on commit
+    stop,      -p               stop/pause counting time spent
+    reset,     -r               reset counting time spent
+    add,       -g <[-]minutes>  add (or substract) time from the timer
+    set,       -e    <minutes>  set time spent in minutes
+    timesince, -ts              set time spent since last commit
+    current,   -c               time spent currently in next commit
 
 Commit related commands:
-    ammend, -a, --amend [<object>]     set currently spent time to last commit or to the given one
-    delete, -d, --delete [<object>]    delete time-spent to last commit or to the given one
-    summary, -u, --summary [<opts>]     show summary of total time spent. takes similar options as git    log
-    log, -l, --log [<opts>]         show git log with notes translates to human time
-    get-time, -gt, --get-time [<object>] gets time from last commit or the given one
-
-Multiple timers commands:
-    -st  --save-timer <name>   save current timer to a named timer for later reuse
-    -ut, --use-timer <name>    sets an existent timer as current one
-    -dt, --del-timer <name>    delete an existent timer
-    -ti, --timer-info <name>   shows a timer information
-    -lt, --list-timers         list existing timers
+    ammend,  -a [<object>]  set currently spent time to last commit or to the given one
+    delete,  -d [<object>]  delete time-spent to last commit or to the given one
+    summary, -u [<opts>]    show summary of total time spent. takes similar options as 'git log'
+    log,     -l [<opts>]    show git log with notes translates to human time
 
 Configuration commands:
-    addhooks, -o, --addhooks             adds post-commit hook and post-merge to the project
-    config, -n, --config [<remote>]    adds config to the project to pull and push timetrack info
-    init, -i, --init                 setup timetrack environment, hooks and config for origin
-    merge, -m, --merge [<remote>]     merge timetracker notes from remote branch (origin by default)
+    addhooks           adds post-commit hook and post-merge to the project
+    config [<remote>]  adds config to the project to pull and push timetrack info
+    init               setup timetrack environment, hooks and config for origin
+    merge  [<remote>]  merge timetracker notes from remote branch (origin by default)
 "
 }
+
+### Depricated:
+# Multiple timers commands:
+#     save-timer,  -st <name>  save current timer to a named timer for later reuse
+#     use-timer,   -ut <name>  sets an existent timer as current one
+#     del-timer,   -dt <name>  delete an existent timer
+#     timer-info,  -ti <name>  shows a timer information
+#     list-timers, -lt         list existing timers
 
 ### HOOKS
 
@@ -56,8 +56,9 @@ function post_commit_hook() {
 echo '#!/bin/bash
 
 hacking=$(git config timetrack.hacking)
-git timetrack stop > /dev/null
-spent=$(git config timetrack.spent)
+git timetrack stop # > /dev/null
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+spent=$(git config timetrack.$current_branch.spent)
 git timetrack reset
 
 if [ $spent ]; then
@@ -79,24 +80,12 @@ function post_checkout_hook() {
 echo '#!/bin/bash
 
 # if branch is switched
-if [ "$3" = "1" ]; then
-    started=$(git config timetrack.start)
-    hacking=$(git config timetrack.hacking)
-
+if (( $3 == 1 )); then
     old_branch=$(git config timetrack.branch)
     git timetrack timer-save $old_branch
 
     current_branch=$(git rev-parse --abbrev-ref HEAD)
-    git config timetrack.branch $current_branch
-    if [ -z "$(git config timetrack.$current_branch.spent)" ]; then
-        # git timetrack timer-save $current_branch
-        # git config timetrack.$old_branch.spent 0
-        git config timetrack.$current_branch.spent 0
-    fi
     git timetrack timer-use $current_branch
-
-    [ $started ] && git config timetrack.start $started
-    [ $hacking ] && git config timetrack.hacking $hacking
 
     git timetrack list
 fi'
@@ -122,34 +111,6 @@ function human_time() {
     (( $1 < 60 )) || (( $s > 0 )) && printf " %2d seconds\n" $s
 }
 
-function current_time() {
-    start_date=$(config_get start)
-    current_date=$(date +%s)
-    spent_date=$(config_get spent)
-    spent_date=${spent_date:-0}
-
-    [ $start_date ] && spent=$(( $spent_date + $current_date - $start_date ))
-    echo ${spent:-$spent_date}
-}
-
-function user_time_dedication() {
-    user=$1
-    shift
-    alltimes=$(git log --author="$user" $* | grep "Time-spent: " | cut -d":" -f2)
-
-    total=0
-    for t in $alltimes
-    do
-        total=$(( $total + $t ))
-    done
-
-    echo $total
-}
-
-function current_branch() {
-    git rev-parse --abbrev-ref HEAD
-}
-
 function config_get() { 
     git config timetrack.$1
 }
@@ -157,30 +118,57 @@ function config_set() {
     git config timetrack.$1 $2
 }
 
+function spent_get() { 
+    spent=$(git config timetrack.$(config_get branch).spent)
+    spent_set ${spent:-0}
+    echo ${spent:-0}
+}
+function spent_set() {
+    git config timetrack.$(config_get branch).spent $1
+}
+
+function current_branch() {
+    git rev-parse --abbrev-ref HEAD
+}
+
+function current_time() {
+    start_date=$(config_get start)
+    current_date=$(date +%s)
+    spent=$(spent_get)
+    [ $start_date ] && spent=$(( $spent + $current_date - $start_date ))
+    echo $spent
+}
+
+function user_time_dedication() {
+    alltimes=$(git log --author="$1" "${@:1}" | grep "Time-spent: " | cut -d":" -f2)
+
+    total=0
+    for t in $alltimes; do
+        total=$(( $total + $t ))
+    done
+
+    echo $total
+}
 
 ### SUBCOMMANDS
 
 function gtt_start() {
     config_set start  $(date +%s)
-    config_set branch $(current_branch)
+    # config_set branch $(current_branch)
+    gtt_timer_use $(current_branch)
 }
 function gtt_hacking() {
     gtt_start
     config_set hacking true
 } 
 function gtt_reset() {
-    # git config --remove-section timetrack 2> /dev/null
     git config --unset timetrack.start
-    git config --unset timetrack.spent
-    git config --unset timetrack.$(config_get branch).spent
+    git config --unset timetrack.$(current_branch).spent 2> /dev/null
 }
 function gtt_stop() {
     [ ! $(config_get start) ] && echo "nothing to stop"
-
-    spent=$(current_time)
-    gtt_reset
-    config_set spent $spent
-    config_set $(config_get branch).spent $spent
+    spent_set $(current_time)
+    git config --unset timetrack.start
 }
 function gtt_current() {
     spent=$(current_time)
@@ -193,7 +181,7 @@ function gtt_current() {
     fi
 }
 function gtt_list_timers() {
-    timers=$(git config --get-regexp "timetrack\..*\." | cut -d . -f 2 | sort -u)
+    timers=$(git config --get-regexp "timetrack\..*\.spent" | cut -d . -f 2 | sort -u)
     # count=0
     # echo "Saved timers:"
     width=15
@@ -204,7 +192,7 @@ function gtt_list_timers() {
     for timer in $timers; do
         # count=$(( $count + 1 ))
         spent=$(config_get $timer.spent)
-        if [ "$timer" == "$(current_branch)" ]
+        if [ "$timer" == "$(config_get branch)" ]
             then printf "* %-${width}s %31s *\n" "$timer" "$(human_time $(current_time))" 
             else printf "  %-${width}s %31s  \n" "$timer" "$(human_time $spent)" 
         fi
@@ -212,12 +200,25 @@ function gtt_list_timers() {
     # printf "\n%s timers\n" "$count"
 }
 function gtt_set() {
+    t=${1:?"argument needed"}
     gtt_reset
-    spent=$(( $1 * 60 ))
-    config_set spent $spent
     config_set branch $(current_branch)
-    config_set $(config_get branch).spent $spent
+    spent_set $(( $t * 60 ))
 }
+function gtt_add() {
+    t=${1:?"argument needed"}
+    config_set branch $(current_branch)
+    spent_set $(( $t * 60 + $(spent_get) ))
+}
+function gtt_timer_save() {
+    config_set ${1:-$(config_get branch)}.spent $(current_time)
+}
+function gtt_timer_use() {
+    t=${1:?"argument needed"}
+    config_set branch $t
+    spent_set $(spent_get)
+}
+
 function gtt_task_new() {
     name=$2
     [ -z "$name" ] && echo "need branch name for working on task"
@@ -272,26 +273,21 @@ case $1 in
         ;;
 
     set|-e|--set)
-        gtt_set $2
+        gtt_set "${@:2}"
         gtt_current
         ;;
 
     add|-g|--add)
-        spent_date=$(config_get spent)
-        config_set spent $(( $2 * 60 + ${spent_date:-0} ))
-        config_set branch $(current_branch)
+        gtt_add "${@:2}"
         gtt_current
         ;;
 
     timer-save|-st|--save-timer)
-        config_set $2.spent $(current_time)
+        gtt_timer_save "${@:2}"
         ;;
 
     timer-use|-ut|--use-timer)
-        spent=$(config_get $2.spent)
-        [ -z $spent ] && echo "timer $2 not found" && exit 1
-        gtt_reset
-        config_set spent $spent
+        gtt_timer_use "${@:2}"
         ;;
 
     timer-del|-dt|--del-timer)
@@ -312,13 +308,12 @@ case $1 in
 
     ammend|-a|--amend)
         gtt_stop > /dev/null
-        spent=$(config_get spent)
+        spent=$(spent_get)
         hacking=$(config_get hacking)
         gtt_reset
 
         [ $spent ] && git notes --ref timetracker add -f -m "Time-spent: $spent" $2
         [ $hacking ] && config_set start $(date +%s)
-            # config_set hacking $hacking
         ;;
 
     delete|-d|--delete)
@@ -348,16 +343,23 @@ case $1 in
         ;;
 
     log|-l|--log)
-        shift
-        git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/git timetrack --human-time \1/e" | less -R
+        git log --color "${@:2}" | sed "s/Time-spent: \([0-9]\+\)/git timetrack --human-time \1/e" | less -R
         ;;
 
-    get-time|-gt|--get-time)
-        time=$(git log $2 -1 | grep "Time-spent:"  | cut -d":" -f2)
-        [ -z $time ] && echo "Error, the specified commit does not have a Time-spent annotation" && exit 1
-        git config --remove-section timetrack 2>/dev/null
-        config_set spent $time
+    timesince|-ts|--timesince)
+        current_date=$(date +%s)
+        last=$(git log HEAD~${2:-0} -1 --format=%ct)
+        t=$(( current_date - last ))
+        gtt_set $(( $t / 60 ))
+        gtt_current
         ;;
+
+    # get-time|-gt|--get-time)
+    #     t=$(git log ${2:-HEAD} -1 | grep "Time-spent:"  | cut -d":" -f2)
+    #     [ -z $t ] && echo "Error, the specified commit does not have a Time-spent annotation" && exit 1
+    #     gtt_set $t
+    #     gtt_current
+    #     ;;
 
     --human-time)
         echo $(human_time $2)
@@ -405,15 +407,8 @@ case $1 in
         git notes --ref timetracker merge "refs/notes/remotes/${2:-origin}/timetracker"
         ;;
 
-    timesince|-ts|--timesince)
-        current_date=$(date +%s)
-        last=$(git log -1 --format=%ct)
-        t=$(( current_date - last ))
-        gtt_set $(( $t / 60 ))
-        ;;
-
     task-new)
-        gtt_task_new ${@:1}
+        gtt_task_new "${@:1}"
         ;;
 
     # task-report)
