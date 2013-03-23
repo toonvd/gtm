@@ -255,7 +255,8 @@ function gtt_task_new() {
 
     if [ "$issue" ]; then
         ghi_out=$(ghi open  --claim  -m "$issue" $labels "${@:3}")
-        echo $ghi_out
+        echo
+        echo "$ghi_out"
         for line in $ghi_out; do
             number=$(expr $line : '^#\([0-9]*\):')
             [ "$number" ] && config_set $name.issue $number && break
