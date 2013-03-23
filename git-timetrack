@@ -182,31 +182,30 @@ function gtt_current() {
 }
 function gtt_list_timers() {
     timers=$(git config --get-regexp "timetrack\..*\.spent" | cut -d . -f 2 | sort -u)
-    # count=0
-    # echo "Saved timers:"
-    width=15
+    lwidth=10
+    rwidth=0
     for timer in $timers; do
-        (( ${#timer} > width )) && width=${#timer}
+        (( ${#timer} > lwidth )) && lwidth=${#timer}
+        spent=$(human_time $(config_get $timer.spent))
+        (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
 
     for timer in $timers; do
-        # count=$(( $count + 1 ))
         spent=$(config_get $timer.spent)
         if [ "$timer" == "$(config_get branch)" ]
-            then printf "* %-${width}s %31s *\n" "$timer" "$(human_time $(current_time))" 
-            else printf "  %-${width}s %31s  \n" "$timer" "$(human_time $spent)" 
+            then printf "* %-${lwidth}s %${rwidth}s *\n" "$timer" "$(human_time $(current_time))" 
+            else printf "  %-${lwidth}s %${rwidth}s  \n" "$timer" "$(human_time $spent)" 
         fi
     done
-    # printf "\n%s timers\n" "$count"
 }
 function gtt_set() {
-    t=${1:?"argument needed"}
+    t=${1:?"time amount needed"}
     gtt_reset
     config_set branch $(current_branch)
     spent_set $(( $t * 60 ))
 }
 function gtt_add() {
-    t=${1:?"argument needed"}
+    t=${1:?"time amount needed"}
     config_set branch $(current_branch)
     spent_set $(( $t * 60 + $(spent_get) ))
 }
@@ -214,15 +213,28 @@ function gtt_timer_save() {
     config_set ${1:-$(config_get branch)}.spent $(current_time)
 }
 function gtt_timer_use() {
-    t=${1:?"argument needed"}
+    t=${1:?"timer name needed"}
     config_set branch $t
     spent_set $(spent_get)
 }
+function gtt_timer_delete() {
+    for timer in "$@"; do
+        spent=$(config_get $timer.spent)
+        [ -z $spent ] && echo "timer $timer not found" && exit 1
+        git config --remove-section timetrack.$timer 2> /dev/null
+    done
+}
+function gtt_timer_info() {
+    for timer in "$@"; do
+        spent=$(config_get $timer.spent)
+        [ -z $spent ] && echo "timer $timer not found" && exit 1
+        echo "time spent in $timer: $(human_time $spent)"
+    done
+}
 
 function gtt_task_new() {
-    name=$2
-    [ -z "$name" ] && echo "need branch name for working on task"
-    issue=$3
+    name=${1:?"need a branch name for working on task"}
+    issue=$2
 
     prefix=${name%/*}
     labels=""
@@ -231,82 +243,106 @@ function gtt_task_new() {
 
     echo "This command will create"
     echo "- branch with name \"$name\""
-    [ "$issue" ]  && echo "- github issue with name \"$issue\""
-    [ "$labels" ] && echo "  and tags: ${labels// -L / }"
+    if [ "$issue" ]; then
+        echo "- github issue with name \"$issue\""
+        [ "$labels" ] && echo "  and tags: ${prefix//\//, }"
+    fi
     read -p "Do you want to continue? [y/n]" ans
     [ "$ans" != "y" ] && exit 1
 
     config_set branch $(current_branch)
     git checkout -b $name
-    git push -u origin $(current_branch)
+    # git push -u origin $(current_branch)
 
-    [ "$issue" ] && ghi open  --claim  -m "$issue" $labels "${@:4}"
-    git commit -m "Created issue: "
+    if [ "$issue" ]; then
+        ghi_out=$(ghi open  --claim  -m "$issue" $labels "${@:3}")
+        echo $ghi_out
+        for line in $ghi_out; do
+            number=$(expr $line : '^#\([0-9]*\):')
+            [ "$number" ] && config_set $name.issue $number && break
+        done
+    fi
 }
+function gtt_task_delete() {
+    for task in "$@"; do
+        is_merged=$(git branch --no-merged | grep "^ *$task$")
+        read -p "Looks like this branch is not merged. Are sure you want to delete it? [y/n]" ans
+        [ "$ans" != "y" ] && exit 1
+
+        git branch -d $task
+        gtt_timer_delete $task
+    done
+}
+function gtt_task_connect() {
+    branch=$(config_get branch)
+    issue=${1:-$(config_get $branch.issue)}
+    [ -z "$issue" ] && echo "need issue number" && exit 1
+
+    git push -u origin $branch
+    git pull-request -i $issue
+    config_set $branch.issue $issue
+}
+
 
 #############
 
 (( $# == 0 )) && show_help && exit 1
 
 case $1 in
-    start|-s|--start)
+    start|-s)
         gtt_start
         gtt_current
         ;;
 
-    hacking|-k|--start-hacking)
+    hacking|-k)
         gtt_hacking
         gtt_current
         ;;
 
-    stop|-p|--stop)
+    stop|-p)
         gtt_stop
         gtt_current
         ;;
 
-    current|-c|--current)
+    current|-c)
         gtt_current
         ;;
 
-    reset|-r|--reset)
+    reset|-r)
         gtt_reset
         ;;
 
-    set|-e|--set)
+    set|-e)
         gtt_set "${@:2}"
         gtt_current
         ;;
 
-    add|-g|--add)
+    add|-g)
         gtt_add "${@:2}"
         gtt_current
         ;;
 
-    timer-save|-st|--save-timer)
+    timer-save)
         gtt_timer_save "${@:2}"
         ;;
 
-    timer-use|-ut|--use-timer)
+    timer-use)
         gtt_timer_use "${@:2}"
         ;;
 
-    timer-del|-dt|--del-timer)
-        spent=$(config_get $2.spent)
-        [ -z $spent ] && echo "timer $2 not found" && exit 1
-        git config --remove-section timetrack.$2 2> /dev/null
+    timer-delete)
+        gtt_timer_delete "${@:2}"
         ;;
 
-    info|-ti|--timer-info)
-        spent=$(config_get $2.spent)
-        [ -z $spent ] && echo "timer $2 not found" && exit 1
-        echo "time spent in $2: $(human_time $spent)"
+    timer-info)
+        
         ;;
 
-    list|-lt|--list-timers)
+    list)
         gtt_list_timers
         ;;
 
-    ammend|-a|--amend)
+    ammend|-a)
         gtt_stop > /dev/null
         spent=$(spent_get)
         hacking=$(config_get hacking)
@@ -316,11 +352,11 @@ case $1 in
         [ $hacking ] && config_set start $(date +%s)
         ;;
 
-    delete|-d|--delete)
+    delete|-d)
         git notes --ref timetracker remove ${2:-HEAD}
         ;;
 
-    summary|-u|--summary)
+    summary|-u)
         shift
         allusers=$(git log --oneline --pretty="format:%ae" "${@:1}" | sort | uniq)
         alltimes=$(git log "${@:1}" | grep "Time-spent:"  | cut -d":" -f2)
@@ -342,11 +378,11 @@ case $1 in
         [ $(config_get hacking) ] && echo "hacking mode activated"
         ;;
 
-    log|-l|--log)
-        git log --color "${@:2}" | sed "s/Time-spent: \([0-9]\+\)/git timetrack --human-time \1/e" | less -R
+    log)
+        git log --color "${@:2}" | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
         ;;
 
-    timesince|-ts|--timesince)
+    timesince)
         current_date=$(date +%s)
         last=$(git log HEAD~${2:-0} -1 --format=%ct)
         t=$(( current_date - last ))
@@ -354,18 +390,11 @@ case $1 in
         gtt_current
         ;;
 
-    # get-time|-gt|--get-time)
-    #     t=$(git log ${2:-HEAD} -1 | grep "Time-spent:"  | cut -d":" -f2)
-    #     [ -z $t ] && echo "Error, the specified commit does not have a Time-spent annotation" && exit 1
-    #     gtt_set $t
-    #     gtt_current
-    #     ;;
-
-    --human-time)
-        echo $(human_time $2)
+    human-time)
+        human_time ${2:?"need time in seconds"}
         ;;
 
-    addhooks|-o|--addhooks)
+    addhooks)
         gitdir="$(git rev-parse --git-dir)"
         [ ! -d $gitdir ] && echo "It's not a git root directory. I won't do anything" && exit 1
 
@@ -387,7 +416,7 @@ case $1 in
         echo "hooks created"
         ;;
 
-    config|-n|--config)
+    config)
         remote=${2:-origin}
         git config --add remote.$remote.push "refs/notes/timetracker:refs/notes/timetracker"
         git config --add remote.$remote.fetch "+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
@@ -398,22 +427,26 @@ case $1 in
         echo "git timetrack configured. now run git pull if you don't want problems"
         ;;
 
-    init|-i|--init)
+    init)
         git timetrack --addhooks
         git timetrack --config
         ;;
 
-    merge|-m|--merge)
-        git notes --ref timetracker merge "refs/notes/remotes/${2:-origin}/timetracker"
+    merge)
+        git notesref timetracker merge "refs/notes/remotes/${2:-origin}/timetracker"
         ;;
 
     task-new)
-        gtt_task_new "${@:1}"
+        gtt_task_new "${@:2}"
         ;;
 
-    # task-report)
-    #     gtt_task_report ${@:1}
-    #     ;;
+    task-delete)
+        gtt_task_delete "${@:2}"
+        ;;
+
+    task-connect)
+        gtt_task_connect "$2"
+        ;;
 
     *)
         show_help
