@@ -279,10 +279,12 @@ function gtt_task_connect() {
     issue=${1:-$(config_get $branch.issue)}
     [ -z "$issue" ] && echo "need issue number" && exit 1
 
-    upstream=$(git rev-parse --abbrev-ref $branch@{upstream})
-    u=$([ "$upstream" == "origin/$branch" ] && echo "-u" || echo "")
+    # check if the branch has upstream
+    git rev-parse --abbrev-ref $branch@{upstream} &> /dev/null
+    u=$( (( $? != 0 )) && echo "-u" )
     git push "$u" origin $branch
 
+    echo
     ghi edit --head $branch $issue
     config_set $branch.issue $issue
 }
