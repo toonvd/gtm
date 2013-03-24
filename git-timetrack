@@ -56,14 +56,14 @@ function post_commit_hook() {
 echo '#!/bin/bash
 
 hacking=$(git config timetrack.hacking)
-git timetrack stop # > /dev/null
+git-timetrack stop # > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config timetrack.$current_branch.spent)
-git timetrack reset
+git-timetrack reset
 
 if [ $spent ]; then
     git notes --ref timetracker add -m "Time-spent: $spent"
-    [ $hacking ] && git timetrack start
+    [ $hacking ] && git-timetrack start
 fi'
 }
 
@@ -72,22 +72,28 @@ echo '#!/bin/bash
 
 gitdir=$(git rev-parse --git-dir)
 for remote in $gitdir/refs/notes/remotes/*; do
-    git timetrack merge "$(basename $remote)"
+    git-timetrack merge "$(basename $remote)"
 done'
 }
 
 function post_checkout_hook() {
 echo '#!/bin/bash
 
-# if branch is switched
-if (( $3 == 1 )); then
+if (( $3 == 1 )) # if branch is switched
+then
+    # save state of old branch
     old_branch=$(git config timetrack.branch)
-    git timetrack timer-save $old_branch
+    spent=$(git-timetrack current -s)
+    on=$(git config timetrack.start)
+    git config --unset timetrack.start
+    git config timetrack.$old_branch.spent $spent
 
+    # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
-    git timetrack timer-use $current_branch
+    git config timetrack.branch $current_branch
+    [ "$on" ] && git-timetrack start &> /dev/null
 
-    git timetrack list
+    git-timetrack list
 fi'
 }
 
@@ -155,9 +161,8 @@ function user_time_dedication() {
 ### SUBCOMMANDS
 
 function gtt_start() {
-    config_set start  $(date +%s)
-    # config_set branch $(current_branch)
-    gtt_timer_use $(current_branch)
+    config_set start $(date +%s)
+    spent_get &> /dev/null
 }
 function gtt_hacking() {
     gtt_start
@@ -174,6 +179,8 @@ function gtt_stop() {
 }
 function gtt_current() {
     spent=$(current_time)
+    [ "$1" == "-s" ] && echo $spent && exit 0
+
     if (( $spent == 0 )); then
         echo "timer is empty"
     else
@@ -203,21 +210,11 @@ function gtt_list_timers() {
 function gtt_set() {
     t=${1:?"time amount needed"}
     gtt_reset
-    config_set branch $(current_branch)
     spent_set $(( $t * 60 ))
 }
 function gtt_add() {
     t=${1:?"time amount needed"}
-    config_set branch $(current_branch)
     spent_set $(( $t * 60 + $(spent_get) ))
-}
-function gtt_timer_save() {
-    config_set ${1:-$(config_get branch)}.spent $(current_time)
-}
-function gtt_timer_use() {
-    t=${1:?"timer name needed"}
-    config_set branch $t
-    spent_set $(spent_get)
 }
 function gtt_timer_delete() {
     for timer in "$@"; do
@@ -261,8 +258,6 @@ function gtt_task_new() {
     read -p "Do you want to continue? [y/n]" ans
     [ "$ans" != "y" ] && exit 1
 
-    # branch creating
-    config_set branch $(current_branch)
     git checkout -b $name
 
     # issue binding
@@ -329,7 +324,7 @@ case $subcommand in
         gtt_current
     ;;
     current|-c)
-        gtt_current
+        gtt_current "$@"
     ;;
     reset|-r)
         gtt_reset
@@ -341,12 +336,6 @@ case $subcommand in
     add|-g)
         gtt_add "$@"
         gtt_current
-    ;;
-    timer-save)
-        gtt_timer_save "$@"
-    ;;
-    timer-use)
-        gtt_timer_use "$@"
     ;;
     timer-delete)
         gtt_timer_delete "$@"
