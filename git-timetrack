@@ -72,7 +72,7 @@ echo '#!/bin/bash
 
 gitdir=$(git rev-parse --git-dir)
 for remote in $gitdir/refs/notes/remotes/*; do
-    git timetrack --merge "$(basename $remote)"
+    git timetrack merge "$(basename $remote)"
 done'
 }
 
