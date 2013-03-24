@@ -56,14 +56,14 @@ function post_commit_hook() {
 echo '#!/bin/bash
 
 hacking=$(git config timetrack.hacking)
-git timetrack stop # > /dev/null
+git-timetrack stop # > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config timetrack.$current_branch.spent)
-git timetrack reset
+git-timetrack reset
 
 if [ $spent ]; then
     git notes --ref timetracker add -m "Time-spent: $spent"
-    [ $hacking ] && git timetrack start
+    [ $hacking ] && git-timetrack start
 fi'
 }
 
@@ -72,7 +72,7 @@ echo '#!/bin/bash
 
 gitdir=$(git rev-parse --git-dir)
 for remote in $gitdir/refs/notes/remotes/*; do
-    git timetrack --merge "$(basename $remote)"
+    git-timetrack --merge "$(basename $remote)"
 done'
 }
 
@@ -83,7 +83,7 @@ if (( $3 == 1 )) # if branch is switched
 then
     # save state of old branch
     old_branch=$(git config timetrack.branch)
-    spent=$(git timetrack current -s)
+    spent=$(git-timetrack current -s)
     on=$(git config timetrack.start)
     git config --unset timetrack.start
     git config timetrack.$old_branch.spent $spent
@@ -91,9 +91,9 @@ then
     # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
     git config timetrack.branch $current_branch
-    [ "$on" ] && git timetrack start &> /dev/null
+    [ "$on" ] && git-timetrack start &> /dev/null
 
-    git timetrack list
+    git-timetrack list
 fi'
 }
 
