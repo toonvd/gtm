@@ -234,34 +234,49 @@ function gtt_timer_info() {
 
 function gtt_task_new() {
     name=${1:?"need a branch name for working on task"}
-    issue=$2
+    issue_flag=$2
+    # [ "$2" != "-m" ] && [ "$2" != "-i" ] && show_help && exit 1
+    issue=$3
 
     prefix=${name%/*}
-    labels=""
     # if prefix was not empty
     [ "$prefix" != "$name" ] && labels=" -L "${prefix//\// -L }
 
+    # info and confirmation
     echo "This command will create"
-    echo "- branch with name \"$name\""
-    if [ "$issue" ]; then
-        echo "- github issue with name \"$issue\""
-        [ "$labels" ] && echo "  and tags: ${prefix//\//, }"
-    fi
+    echo "- local branch with name \"$name\""
+    case $issue_flag in
+        -m)
+            echo "- github issue with name \"$issue\""
+            [ $labels ] && echo "  and tags: ${prefix//\//, }"
+        ;;
+        -i)
+            echo "And bind it to the issue:"
+            ghi show $issue
+        ;;
+    esac
     read -p "Do you want to continue? [y/n]" ans
     [ "$ans" != "y" ] && exit 1
 
+    # branch creating
     config_set branch $(current_branch)
     git checkout -b $name
 
-    if [ "$issue" ]; then
-        ghi_out=$(ghi open  --claim  -m "$issue" $labels "${@:3}")
-        echo
-        echo "$ghi_out"
-        for line in $ghi_out; do
-            number=$(expr $line : '^#\([0-9]*\):')
-            [ "$number" ] && config_set $name.issue $number && break
-        done
-    fi
+    # issue binding
+    case $issue_flag in
+        -m)
+            ghi_out=$(ghi open  --claim  -m "$issue" $labels "${@:3}")
+            echo
+            echo "$ghi_out"
+            for line in $ghi_out; do
+                number=$(expr $line : '^#\([0-9]*\):')
+                [ "$number" ] && config_set $name.issue $number && break
+            done
+        ;;
+        -i)
+            config_set $name.issue $issue
+        ;;
+    esac
 }
 function gtt_task_delete() {
     for task in "$@"; do
@@ -294,78 +309,68 @@ function gtt_task_connect() {
 
 (( $# == 0 )) && show_help && exit 1
 
-case $1 in
+subcommand=$1
+shift && args="$@"
+
+case $subcommand in
     start|-s)
         gtt_start
         gtt_current
-        ;;
-
+    ;;
     hacking|-k)
         gtt_hacking
         gtt_current
-        ;;
-
+    ;;
     stop|-p)
         gtt_stop
         gtt_current
-        ;;
-
+    ;;
     current|-c)
         gtt_current
-        ;;
-
+    ;;
     reset|-r)
         gtt_reset
-        ;;
-
+    ;;
     set|-e)
-        gtt_set "${@:2}"
+        gtt_set $args
         gtt_current
-        ;;
-
+    ;;
     add|-g)
-        gtt_add "${@:2}"
+        gtt_add $args
         gtt_current
-        ;;
-
+    ;;
     timer-save)
-        gtt_timer_save "${@:2}"
-        ;;
-
+        gtt_timer_save $args
+    ;;
     timer-use)
-        gtt_timer_use "${@:2}"
-        ;;
-
+        gtt_timer_use $args
+    ;;
     timer-delete)
-        gtt_timer_delete "${@:2}"
-        ;;
-
+        gtt_timer_delete $args
+    ;;
     timer-info)
-        
-        ;;
-
+        gtt_timer_info $args
+    ;;
     list)
         gtt_list_timers
-        ;;
-
+    ;;
     ammend|-a)
+        sha=${1:?"need commit sha"}
         gtt_stop > /dev/null
         spent=$(spent_get)
         hacking=$(config_get hacking)
         gtt_reset
 
-        [ $spent ] && git notes --ref timetracker add -f -m "Time-spent: $spent" $2
+        [ $spent ] && git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
         [ $hacking ] && config_set start $(date +%s)
-        ;;
-
+    ;;
     delete|-d)
-        git notes --ref timetracker remove ${2:-HEAD}
-        ;;
-
+        git notes --ref timetracker remove ${1:-HEAD}
+    ;;
     summary|-u)
         shift
-        allusers=$(git log --oneline --pretty="format:%ae" "${@:1}" | sort | uniq)
-        alltimes=$(git log "${@:1}" | grep "Time-spent:"  | cut -d":" -f2)
+        allusers=$(git log --oneline --pretty="format:%ae" $args | sort | uniq)
+        alltimes=$(git log $args | grep "Time-spent:"  | cut -d":" -f2)
 
         total=0
         for t in $alltimes; do
@@ -374,7 +379,7 @@ case $1 in
 
         echo "total time spent by authors"
         for author in $allusers; do
-            dedication=$(user_time_dedication "$author" "${@:1}")
+            dedication=$(user_time_dedication "$author" $args)
             [ $dedication != 0 ] && printf " %-49s %s\n" "$author" "$(human_time $dedication)"
         done
 
@@ -382,24 +387,20 @@ case $1 in
         printf "%-50s %s\n" "time spent in next comit" "$(human_time $(current_time))"
 
         [ $(config_get hacking) ] && echo "hacking mode activated"
-        ;;
-
+    ;;
     log)
-        git log --color "${@:2}" | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
-        ;;
-
+        git log --color $args | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
+    ;;
     timesince)
         current_date=$(date +%s)
-        last=$(git log HEAD~${2:-0} -1 --format=%ct)
+        last=$(git log HEAD~${1:-0} -1 --format=%ct)
         t=$(( current_date - last ))
         gtt_set $(( $t / 60 ))
         gtt_current
-        ;;
-
+    ;;
     human-time)
-        human_time ${2:?"need time in seconds"}
-        ;;
-
+        human_time ${1:?"need time in seconds"}
+    ;;
     addhooks)
         gitdir="$(git rev-parse --git-dir)"
         [ ! -d $gitdir ] && echo "It's not a git root directory. I won't do anything" && exit 1
@@ -420,10 +421,9 @@ case $1 in
         chmod +x $post_checkout
 
         echo "hooks created"
-        ;;
-
+    ;;
     config)
-        remote=${2:-origin}
+        remote=${1:-origin}
         git config --add remote.$remote.push "refs/notes/timetracker:refs/notes/timetracker"
         git config --add remote.$remote.fetch "+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
         git config notes.rewriteRef "refs/notes/timetracker"
@@ -431,30 +431,24 @@ case $1 in
         config_set branch $(current_branch)
 
         echo "git timetrack configured. now run git pull if you don't want problems"
-        ;;
-
+    ;;
     init)
         git timetrack --addhooks
         git timetrack --config
-        ;;
-
+    ;;
     merge)
-        git notesref timetracker merge "refs/notes/remotes/${2:-origin}/timetracker"
-        ;;
-
+        git notesref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
+    ;;
     task-new)
-        gtt_task_new "${@:2}"
-        ;;
-
+        gtt_task_new $args
+    ;;
     task-delete)
-        gtt_task_delete "${@:2}"
-        ;;
-
+        gtt_task_delete $args
+    ;;
     task-connect)
-        gtt_task_connect "$2"
-        ;;
-
+        gtt_task_connect $args
+    ;;
     *)
         show_help
-        ;;
+    ;;
 esac
