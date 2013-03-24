@@ -119,12 +119,14 @@ function config_set() {
 }
 
 function spent_get() { 
-    spent=$(git config timetrack.$(config_get branch).spent)
-    spent_set ${spent:-0}
+    branch=${1:-$(config_get branch)}
+    spent=$(git config timetrack.$branch.spent)
+    [ ! $spent ] && spent_set 0 $branch
     echo ${spent:-0}
 }
 function spent_set() {
-    git config timetrack.$(config_get branch).spent $1
+    branch=${2:-$(config_get branch)}
+    git config timetrack.$branch.spent $1
 }
 
 function current_branch() {
@@ -430,11 +432,16 @@ case $subcommand in
         git config notes.displayRef "refs/notes/timetracker"
         config_set branch $(current_branch)
 
+        branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+        for branch in $branches; do
+            spent_get $branch &> /dev/null
+        done
+
         echo "git timetrack configured. now run git pull if you don't want problems"
     ;;
     init)
-        git timetrack --addhooks
-        git timetrack --config
+        git timetrack addhooks
+        git timetrack config
     ;;
     merge)
         git notesref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
