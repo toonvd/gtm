@@ -241,6 +241,7 @@ function gtt_task_new() {
     issue=$3
 
     prefix=${name%/*}
+    labels=""
     # if prefix was not empty
     [ "$prefix" != "$name" ] && labels=" -L "${prefix//\// -L }
 
@@ -250,7 +251,7 @@ function gtt_task_new() {
     case $issue_flag in
         -m)
             echo "- github issue with name \"$issue\""
-            [ $labels ] && echo "  and tags: ${prefix//\//, }"
+            [ "$labels" ] && echo "  and tags: ${prefix//\//, }"
         ;;
         -i)
             echo "And bind it to the issue:"
@@ -312,7 +313,7 @@ function gtt_task_connect() {
 (( $# == 0 )) && show_help && exit 1
 
 subcommand=$1
-shift && args="$@"
+shift
 
 case $subcommand in
     start|-s)
@@ -334,24 +335,24 @@ case $subcommand in
         gtt_reset
     ;;
     set|-e)
-        gtt_set $args
+        gtt_set "$@"
         gtt_current
     ;;
     add|-g)
-        gtt_add $args
+        gtt_add "$@"
         gtt_current
     ;;
     timer-save)
-        gtt_timer_save $args
+        gtt_timer_save "$@"
     ;;
     timer-use)
-        gtt_timer_use $args
+        gtt_timer_use "$@"
     ;;
     timer-delete)
-        gtt_timer_delete $args
+        gtt_timer_delete "$@"
     ;;
     timer-info)
-        gtt_timer_info $args
+        gtt_timer_info "$@"
     ;;
     list)
         gtt_list_timers
@@ -370,9 +371,8 @@ case $subcommand in
         git notes --ref timetracker remove ${1:-HEAD}
     ;;
     summary|-u)
-        shift
-        allusers=$(git log --oneline --pretty="format:%ae" $args | sort | uniq)
-        alltimes=$(git log $args | grep "Time-spent:"  | cut -d":" -f2)
+        allusers=$(git log --oneline --pretty="format:%ae" "$@" | sort | uniq)
+        alltimes=$(git log "$@" | grep "Time-spent:"  | cut -d":" -f2)
 
         total=0
         for t in $alltimes; do
@@ -381,7 +381,7 @@ case $subcommand in
 
         echo "total time spent by authors"
         for author in $allusers; do
-            dedication=$(user_time_dedication "$author" $args)
+            dedication=$(user_time_dedication "$author" "$@")
             [ $dedication != 0 ] && printf " %-49s %s\n" "$author" "$(human_time $dedication)"
         done
 
@@ -391,7 +391,7 @@ case $subcommand in
         [ $(config_get hacking) ] && echo "hacking mode activated"
     ;;
     log)
-        git log --color $args | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
+        git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
     ;;
     timesince)
         current_date=$(date +%s)
@@ -447,13 +447,13 @@ case $subcommand in
         git notesref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
     task-new)
-        gtt_task_new $args
+        gtt_task_new "$@"
     ;;
     task-delete)
-        gtt_task_delete $args
+        gtt_task_delete "$@"
     ;;
     task-connect)
-        gtt_task_connect $args
+        gtt_task_connect "$@"
     ;;
     *)
         show_help
