@@ -551,9 +551,7 @@ case $subcommand in
         gtt_task_close "$@"
     ;;
     prompt-status)
-        gitdir="$(git rev-parse --git-dir)"
-        timetr=$(git config timetrack.branch)
-        if [ -d $gitdir ] && [ "$timetr" ]; then 
+        if [ "$(git config timetrack.branch)" ]; then 
             on_status && human_time $(current_time) --short 
         else
             txtgray "%15s" $(date +%T)
