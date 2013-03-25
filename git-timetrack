@@ -39,8 +39,12 @@ txtblue() {
 txtbold() {
     txtsurround $tbld "$@"
 }
-txtunderline() {
+txt_() {
     txtsurround $tund "$@"
+}
+
+err() {
+    txtred "$1\n" && exit 1
 }
 
 
@@ -212,7 +216,7 @@ function gtt_reset() {
     git config --unset branch.$(current_branch).spent
 }
 function gtt_stop() {
-    [ ! $(config_get start) ] && txtred "Nothing to stop\n" && exit 1
+    [ ! $(config_get start) ] && err "Nothing to stop"
     spent_set $(current_time)
     git config --unset timetrack.start
 }
@@ -240,7 +244,7 @@ function gtt_list() {
         (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
 
-    txtunderline "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent"
+    txt_ "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent"
     for branch in $branches; do
         spent=$(human_time $(git config branch.$branch.spent))
         issue=$(git config branch.$branch.issue)
@@ -345,7 +349,7 @@ function gtt_task_new() {
 function gtt_task_connect() {
     branch=$(current_branch)
     issue=${1:-$(git config branch.$branch.issue)}
-    [ -z "$issue" ] && txtred "Need issue number\n" && exit 1
+    [ -z "$issue" ] && err "Need issue number"
 
     # check if the branch has upstream
     git rev-parse --abbrev-ref $branch@{upstream} &> /dev/null
@@ -355,6 +359,58 @@ function gtt_task_connect() {
     echo
     ghi edit --head $branch $issue
     git config branch.$branch.issue $issue
+}
+function gtt_task_close() {
+    branch=$(current_branch)
+    [ "$branch" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
+
+    dirty=$(git status -s)
+    [ "$dirty" ] && err "You have uncommited changes. Please, commit them before"
+
+    while (( $# )); do
+        case $1 in
+            -b)
+                [ ! $2 ] && err "Need an argument for -b: base branch name"
+                base=$2
+                ;;
+            -i)
+                [ ! $2 ] && err "Need an argument for -i: issue number"
+                issue=$2
+                git config branch.$branch.issue $issue
+                ;;
+            *)
+                err "Wrong options"
+                ;;
+        esac
+        shift 2
+    done
+    base=${base:-master}
+    issue=${issue:-$(git config branch.$branch.issue)}
+    if [ ! "$issue" ]; then 
+        txtred "Task is not connected to any issue."
+        echo " Choose one of existing and use '-i <number>' option or create a new one"
+        ghi list
+        exit 1
+    fi
+
+    echo "This command will"
+    echo "1. `txt_ push` `txtblue [$branch]` branch"
+    echo "2. make a `txt_ pull-request` from the issue `txtyellow \#${issue}`"
+    echo "3. `txt_ switch` to the `txtgreen [$base]` branch"
+    echo "4. `txt_ merge` `txtblue [$branch]` into `txtgreen [$base]`"
+    echo "5. `txt_ push` `txtgreen [$base]` branch and timetracker notes"
+    echo "   (it will `txt_ close` connected issue `txtyellow \#${issue}`)"
+    echo "6. `txt_ delete` `txtblue [$branch]` task"
+
+    read -p "Do you want to continue? [y/n]" ans
+    [ "$ans" != "y" ] && exit 1
+
+    gtt_task_connect $issue
+    git checkout $base
+    git merge --no-ff $branch
+    git push origin $base && git push
+    git branch -d $branch
+    ghi show $issue
 }
 
 
@@ -429,7 +485,7 @@ case $subcommand in
     ;;
     addhooks)
         gitdir="$(git rev-parse --git-dir)"
-        [ ! -d $gitdir ] && txtred "It's not a git root directory!\n" && exit 1
+        [ ! -d $gitdir ] && err "It's not a git root directory!"
 
     	hooksdir="$gitdir/hooks"
     	[ ! -d $hooksdir ] && mkdir $hooksdir
@@ -478,6 +534,9 @@ case $subcommand in
     ;;
     task-connect)
         gtt_task_connect "$@"
+    ;;
+    task-close)
+        gtt_task_close "$@"
     ;;
     usage|-h|--help|help)
         show_help
