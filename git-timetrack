@@ -495,7 +495,7 @@ case $subcommand in
         git timetrack config
     ;;
     merge)
-        git notesref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
+        git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
     task-new)
         gtt_task_new "$@"
