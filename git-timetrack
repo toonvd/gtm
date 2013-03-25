@@ -12,6 +12,38 @@
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
+# Text color variables
+tund=$(tput sgr 0 1) # underline
+tbld=$(tput bold)    # bold
+tred=$(tput setaf 1) # red
+tgrn=$(tput setaf 2) # green
+tyel=$(tput setaf 2) # yellow
+tblu=$(tput setaf 4) # blue
+trst=$(tput sgr0)    # reset
+# Surroungings
+txtsurround() {
+    printf "${1}${2}${trst}" "${@:3}"
+}
+txtred() {
+    txtsurround $tred "$@"
+}
+txtgreen() {
+    txtsurround $tgrn "$@"
+}
+txtyellow() {
+    txtsurround $tyel "$@"
+}
+txtblue() {
+    txtsurround $tblu "$@"
+}
+txtbold() {
+    txtsurround $tbld "$@"
+}
+txtunderline() {
+    txtsurround $tund "$@"
+}
+
+
 ### USAGE
 
 function show_help {
@@ -112,9 +144,15 @@ function human_time() {
         m=$(( $m % 60 ))
     done
 
-    (( $h > 0 )) && printf "%2d hours" $h
-    (( $m > 0 )) && printf " %2d minutes" $m
-    (( $1 < 60 )) || (( $s > 0 )) && printf " %2d seconds\n" $s
+    (( $h >  0 )) && printf "%2d hours "    $h
+    (( $m >  0 )) && printf "%2d minutes "  $m
+    (( $s >= 0 )) && printf "%2d seconds\n" $s
+    # (( $h < 10 )) && hh=" $h:" || hh="$h:"
+    # (( $h == 0 )) && hh="    "
+    # (( $m < 10 )) && mm="0$m:" || mm="$m:"
+    # (( $m == 0 )) && mm="    "
+    # (( $s < 10 )) && ss="0$s" || ss="$s"
+    # echo "$hh$mm$ss"
 }
 
 function config_get() { 
@@ -148,7 +186,7 @@ function current_time() {
 }
 
 function user_time_dedication() {
-    alltimes=$(git log --author="$1" "${@:1}" | grep "Time-spent: " | cut -d":" -f2)
+    alltimes=$(git log --author="$1" --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
 
     total=0
     for t in $alltimes; do
@@ -158,6 +196,12 @@ function user_time_dedication() {
     echo $total
 }
 
+function on_status() {
+    [ $(config_get start) ] && txtgreen " [on]" || txtred " [off]"
+}
+function mode_status() {
+    [ $(config_get hacking) ] && txtblue " [non-stop]"
+}
 ### SUBCOMMANDS
 
 function gtt_start() {
@@ -173,7 +217,7 @@ function gtt_reset() {
     git config --unset timetrack.$(current_branch).spent 2> /dev/null
 }
 function gtt_stop() {
-    [ ! $(config_get start) ] && echo "nothing to stop"
+    [ ! $(config_get start) ] && txtred "Nothing to stop\n" && exit 1
     spent_set $(current_time)
     git config --unset timetrack.start
 }
@@ -182,15 +226,16 @@ function gtt_current() {
     [ "$1" == "-s" ] && echo $spent && exit 0
 
     if (( $spent == 0 )); then
-        echo "timer is empty"
+        echo "Timer is empty"
     else
-        echo "time spent in next commit: $(human_time $spent)"
-        [ $(config_get start) ]   && echo "timer counting" || echo "timer stopped"
-        [ $(config_get hacking) ] && echo "hacking mode activated"
+        echo -n "$(human_time $spent)"
+        on_status && mode_status
+        echo
     fi
 }
-function gtt_list_timers() {
-    timers=$(git config --get-regexp "timetrack\..*\.spent" | cut -d . -f 2 | sort -u)
+function gtt_list() {
+    timers=$(git config --get-regexp "timetrack\..*\." | cut -d . -f 2 | sort -u)
+    [ $(config_get start) ] && gtt_stop && gtt_start
     lwidth=10
     rwidth=0
     for timer in $timers; do
@@ -199,14 +244,46 @@ function gtt_list_timers() {
         (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
 
+    txtunderline "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent"
     for timer in $timers; do
-        spent=$(config_get $timer.spent)
+        spent=$(human_time $(config_get $timer.spent))
+        issue=$(config_get $timer.issue)
         if [ "$timer" == "$(config_get branch)" ]
-            then printf "* %-${lwidth}s %${rwidth}s *\n" "$timer" "$(human_time $(current_time))" 
-            else printf "  %-${lwidth}s %${rwidth}s  \n" "$timer" "$(human_time $spent)" 
+        then 
+            printf "* "
+            txtyellow "%-2s " "$issue" 
+            printf "%-${lwidth}s " "$timer" 
+            printf  "%${rwidth}s"  "$spent"
+            on_status && mode_status
+        else 
+            txtyellow "  %-2s " "$issue" 
+            printf "%-${lwidth}s " "$timer" 
+            printf  "%${rwidth}s"  "$spent"
         fi
+        echo
     done
 }
+function gtt_summary() {
+    alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    allusers=$(git log --format="%ae" | sort | uniq)
+    commits=$(git log --oneline)
+    percent=$(( ${#alltimes} * 100 / ${#commits} ))
+    echo "${#alltimes} of ${#commits} commits have time information ($percent%)"
+
+    echo -n "Total time spent by authors in branch "
+    txtblue "[$(current_branch)]\n"
+    for author in $allusers; do
+        dedication=$(user_time_dedication $author)
+        [ $dedication != 0 ] && printf " %-39s %s\n" "$author" "$(human_time $dedication)"
+    done
+
+    total=0
+    for t in $alltimes; do
+        total=$(( $total + $t ))
+    done
+    printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
+}
+
 function gtt_set() {
     t=${1:?"time amount needed"}
     gtt_reset
@@ -227,7 +304,7 @@ function gtt_timer_info() {
     for timer in "$@"; do
         spent=$(config_get $timer.spent)
         [ -z $spent ] && echo "timer $timer not found" && exit 1
-        echo "time spent in $timer: $(human_time $spent)"
+        echo "Time spent in $timer: $(human_time $spent)"
     done
 }
 
@@ -244,10 +321,10 @@ function gtt_task_new() {
 
     # info and confirmation
     echo "This command will create"
-    echo "- local branch with name \"$name\""
+    echo -n "- local branch with name "; txtblue "[$name]\n"
     case $issue_flag in
         -m)
-            echo "- github issue with name \"$issue\""
+            echo -n "- github issue with name "; txtyellow "\"$issue\"\n"
             [ "$labels" ] && echo "  and tags: ${prefix//\//, }"
         ;;
         -i)
@@ -279,7 +356,7 @@ function gtt_task_new() {
 function gtt_task_delete() {
     for task in "$@"; do
         not_merged=$(git branch --no-merged | grep "^ *$task$")
-        [ "$not_merged" ] && echo "Looks like branch \"$task\" is not merged"
+        [ "$not_merged" ] && txtred "Looks like branch \"$task\" is not merged\n"
         read -p "Are you sure you want to delete it? [y/n]" ans
         [ "$ans" != "y" ] && exit 1
 
@@ -290,7 +367,7 @@ function gtt_task_delete() {
 function gtt_task_connect() {
     branch=$(config_get branch)
     issue=${1:-$(config_get $branch.issue)}
-    [ -z "$issue" ] && echo "need issue number" && exit 1
+    [ -z "$issue" ] && txtred "Need issue number\n" && exit 1
 
     # check if the branch has upstream
     git rev-parse --abbrev-ref $branch@{upstream} &> /dev/null
@@ -344,7 +421,7 @@ case $subcommand in
         gtt_timer_info "$@"
     ;;
     list)
-        gtt_list_timers
+        gtt_list
     ;;
     ammend|-a)
         sha=${1:?"need commit sha"}
@@ -360,24 +437,7 @@ case $subcommand in
         git notes --ref timetracker remove ${1:-HEAD}
     ;;
     summary|-u)
-        allusers=$(git log --oneline --pretty="format:%ae" "$@" | sort | uniq)
-        alltimes=$(git log "$@" | grep "Time-spent:"  | cut -d":" -f2)
-
-        total=0
-        for t in $alltimes; do
-            total=$(( $total + $t ))
-        done
-
-        echo "total time spent by authors"
-        for author in $allusers; do
-            dedication=$(user_time_dedication "$author" "$@")
-            [ $dedication != 0 ] && printf " %-49s %s\n" "$author" "$(human_time $dedication)"
-        done
-
-        printf "\n%-50s %s\n" "total time spent in this project" "$(human_time $total)"
-        printf "%-50s %s\n" "time spent in next comit" "$(human_time $(current_time))"
-
-        [ $(config_get hacking) ] && echo "hacking mode activated"
+        gtt_summary "$@"
     ;;
     log)
         git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
@@ -394,7 +454,7 @@ case $subcommand in
     ;;
     addhooks)
         gitdir="$(git rev-parse --git-dir)"
-        [ ! -d $gitdir ] && echo "It's not a git root directory. I won't do anything" && exit 1
+        [ ! -d $gitdir ] && txtred "It's not a git root directory!\n" && exit 1
 
     	hooksdir="$gitdir/hooks"
     	[ ! -d $hooksdir ] && mkdir $hooksdir
@@ -411,7 +471,8 @@ case $subcommand in
         post_checkout_hook > $post_checkout
         chmod +x $post_checkout
 
-        echo "hooks created"
+        txtgreen "Hooks created: "
+        echo "post-commit, post-merge, post-checkout"
     ;;
     config)
         remote=${1:-origin}
@@ -426,7 +487,8 @@ case $subcommand in
             spent_get $branch &> /dev/null
         done
 
-        echo "git timetrack configured. now run git pull if you don't want problems"
+        txtgreen "Git timetrack configured. "
+        echo "Now run git pull if you don't want problems"
     ;;
     init)
         git timetrack addhooks
