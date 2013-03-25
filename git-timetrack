@@ -360,7 +360,7 @@ function gtt_task_connect() {
 
 #############
 
-(( $# == 0 )) && show_help && exit 1
+(( $# == 0 )) && gtt_current && exit 0
 
 subcommand=$1
 shift
@@ -479,7 +479,11 @@ case $subcommand in
     task-connect)
         gtt_task_connect "$@"
     ;;
+    usage|-h|--help|help)
+        show_help
+    ;;
     *)
+        txtred "Wrong subcommand: "; echo "$subcommand"
         show_help
     ;;
 esac
