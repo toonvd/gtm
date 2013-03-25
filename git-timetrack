@@ -342,16 +342,6 @@ function gtt_task_new() {
         ;;
     esac
 }
-function gtt_task_delete() {
-    for task in "$@"; do
-        not_merged=$(git branch --no-merged | grep "^ *$task$")
-        [ "$not_merged" ] && txtred "Looks like branch \"$task\" is not merged\n"
-        read -p "Are you sure you want to delete it? [y/n]" ans
-        [ "$ans" != "y" ] && exit 1
-
-        git branch -d $task
-    done
-}
 function gtt_task_connect() {
     branch=$(current_branch)
     issue=${1:-$(git config branch.$branch.issue)}
@@ -485,9 +475,6 @@ case $subcommand in
     ;;
     task-new)
         gtt_task_new "$@"
-    ;;
-    task-delete)
-        gtt_task_delete "$@"
     ;;
     task-connect)
         gtt_task_connect "$@"
