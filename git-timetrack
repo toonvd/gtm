@@ -84,14 +84,15 @@ function post_commit_hook() {
 echo '#!/bin/bash
 
 hacking=$(git config timetrack.hacking)
-git-timetrack stop # > /dev/null
+git-timetrack stop > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
 git-timetrack reset
 
 if [ $spent ]; then
     git notes --ref timetracker add -m "Time-spent: $spent"
-    [ $hacking ] && git-timetrack start
+    [ $hacking ] && git-timetrack start > /dev/null
+    echo "Time-spent: $(git-timetrack human-time $spent)"
 fi'
 }
 
@@ -216,7 +217,7 @@ function gtt_reset() {
     git config --unset branch.$(current_branch).spent
 }
 function gtt_stop() {
-    [ ! $(config_get start) ] && err "Nothing to stop"
+    # [ ! $(config_get start) ] && err "Nothing to stop"
     spent_set $(current_time)
     git config --unset timetrack.start
 }
@@ -224,13 +225,13 @@ function gtt_current() {
     spent=$(current_time)
     [ "$1" == "-s" ] && echo $spent && exit 0
 
-    if (( $spent == 0 )); then
-        echo "Timer is empty"
-    else
+    # if (( $spent == 0 )); then
+    #     echo "Timer is empty"
+    # else
         echo -n "$(human_time $spent)"
         on_status && mode_status
         echo
-    fi
+    # fi
 }
 function gtt_list() {
     branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
@@ -456,12 +457,15 @@ case $subcommand in
     ;;
     ammend|-a)
         sha=${1:?"need commit sha"}
-        gtt_stop > /dev/null
+        gtt_stop
         spent=$(spent_get)
         hacking=$(config_get hacking)
         gtt_reset
 
-        [ $spent ] && git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
+        if [ $spent ]; then 
+            git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
+            echo "Time spent: $(human_time $spent)"
+        fi
         [ $hacking ] && config_set start $(date +%s)
     ;;
     delete|-d)
