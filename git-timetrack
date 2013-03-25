@@ -17,8 +17,9 @@ tund=$(tput sgr 0 1) # underline
 tbld=$(tput bold)    # bold
 tred=$(tput setaf 88) # red
 tgrn=$(tput setaf 28) # green
-tyel=$(tput setaf 184) # yellow
+tyel=$(tput setaf 3) # yellow
 tblu=$(tput setaf 32) # blue
+tgry=$(tput setaf 8) # gray
 trst=$(tput sgr0)    # reset
 # Surroungings
 txtsurround() {
@@ -35,6 +36,9 @@ txtyellow() {
 }
 txtblue() {
     txtsurround $tblu "$@"
+}
+txtgray() {
+    txtsurround $tgry "$@"
 }
 txtbold() {
     txtsurround $tbld "$@"
@@ -144,15 +148,18 @@ function human_time() {
         m=$(( $m % 60 ))
     done
 
-    (( $h >  0 )) && printf "%2d hours "    $h
-    (( $m >  0 )) && printf "%2d minutes "  $m
-    (( $s >= 0 )) && printf "%2d seconds\n" $s
-    # (( $h < 10 )) && hh=" $h:" || hh="$h:"
-    # (( $h == 0 )) && hh="    "
-    # (( $m < 10 )) && mm="0$m:" || mm="$m:"
-    # (( $m == 0 )) && mm="    "
-    # (( $s < 10 )) && ss="0$s" || ss="$s"
-    # echo "$hh$mm$ss"
+    if [ "$2" == "--short" ]; then
+        (( $h < 10 )) && hh=" $h:" || hh="$h:"
+        # (( $h == 0 )) && hh="    "
+        (( $m < 10 )) && mm="0$m:" || mm="$m:"
+        # (( $m == 0 )) && mm="    "
+        (( $s < 10 )) && ss="0$s" || ss="$s"
+        echo " $hh$mm$ss"
+    else 
+        (( $h >  0 )) && printf "%2d hours "    $h
+        (( $m >  0 )) && printf "%2d minutes "  $m
+        (( $s >= 0 )) && printf "%2d seconds\n" $s
+    fi
 }
 
 function config_get() { 
@@ -197,7 +204,7 @@ function user_time_dedication() {
 }
 
 function on_status() {
-    [ $(config_get start) ] && txtgreen " [on]" || txtred " [off]"
+    [ $(config_get start) ] && txtgreen "  [on]" || txtred " [off]"
 }
 function mode_status() {
     [ $(config_get hacking) ] && txtblue " [non-stop]"
@@ -541,6 +548,15 @@ case $subcommand in
     ;;
     task-close)
         gtt_task_close "$@"
+    ;;
+    prompt-status)
+        gitdir="$(git rev-parse --git-dir)"
+        timetr=$(git config timetrack.branch)
+        if [ -d $gitdir ] && [ "$timetr" ]; then 
+            on_status && human_time $(current_time) --short 
+        else
+            txtgray "%15s" $(date +%T)
+        fi
     ;;
     usage|-h|--help|help)
         show_help
