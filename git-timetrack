@@ -74,14 +74,6 @@ Configuration commands:
 "
 }
 
-### Depricated:
-# Multiple timers commands:
-#     save-timer,  -st <name>  save current timer to a named timer for later reuse
-#     use-timer,   -ut <name>  sets an existent timer as current one
-#     del-timer,   -dt <name>  delete an existent timer
-#     timer-info,  -ti <name>  shows a timer information
-#     list-timers, -lt         list existing timers
-
 ### HOOKS
 
 function post_commit_hook() {
@@ -90,7 +82,7 @@ echo '#!/bin/bash
 hacking=$(git config timetrack.hacking)
 git-timetrack stop # > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
-spent=$(git config timetrack.$current_branch.spent)
+spent=$(git config branch.$current_branch.spent)
 git-timetrack reset
 
 if [ $spent ]; then
@@ -115,15 +107,18 @@ if (( $3 == 1 )) # if branch is switched
 then
     # save state of old branch
     old_branch=$(git config timetrack.branch)
-    spent=$(git-timetrack current -s)
-    on=$(git config timetrack.start)
+    start=$(git config timetrack.start)
+    spent=$(git config branch.$old_branch.spent)
+    now=$(date +%s)
+
+    [ $start ] && spent=$(( $spent + $now - $start ))
+    git config branch.$old_branch.spent $spent
     git config --unset timetrack.start
-    git config timetrack.$old_branch.spent $spent
 
     # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
     git config timetrack.branch $current_branch
-    [ "$on" ] && git-timetrack start &> /dev/null
+    [ "$start" ] && git-timetrack start &> /dev/null
 
     git-timetrack list
 fi'
@@ -163,14 +158,14 @@ function config_set() {
 }
 
 function spent_get() { 
-    branch=${1:-$(config_get branch)}
-    spent=$(git config timetrack.$branch.spent)
-    [ ! $spent ] && spent_set 0 $branch
+    branch=${1:-$(current_branch)}
+    spent=$(git config branch.$branch.spent)
+    [ ! $spent ] && git config branch.$branch.spent 0
     echo ${spent:-0}
 }
 function spent_set() {
-    branch=${2:-$(config_get branch)}
-    git config timetrack.$branch.spent $1
+    branch=${2:-$(current_branch)}
+    git config branch.$branch.spent $1
 }
 
 function current_branch() {
@@ -214,7 +209,7 @@ function gtt_hacking() {
 } 
 function gtt_reset() {
     git config --unset timetrack.start
-    git config --unset timetrack.$(current_branch).spent 2> /dev/null
+    git config --unset branch.$(current_branch).spent
 }
 function gtt_stop() {
     [ ! $(config_get start) ] && txtred "Nothing to stop\n" && exit 1
@@ -234,30 +229,31 @@ function gtt_current() {
     fi
 }
 function gtt_list() {
-    timers=$(git config --get-regexp "timetrack\..*\." | cut -d . -f 2 | sort -u)
+    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    current_branch=$(current_branch)
     [ $(config_get start) ] && gtt_stop && gtt_start
     lwidth=10
     rwidth=0
-    for timer in $timers; do
-        (( ${#timer} > lwidth )) && lwidth=${#timer}
-        spent=$(human_time $(config_get $timer.spent))
+    for branch in $branches; do
+        (( ${#branch} > lwidth )) && lwidth=${#branch}
+        spent=$(human_time $(git config branch.$branch.spent))
         (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
 
     txtunderline "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent"
-    for timer in $timers; do
-        spent=$(human_time $(config_get $timer.spent))
-        issue=$(config_get $timer.issue)
-        if [ "$timer" == "$(config_get branch)" ]
+    for branch in $branches; do
+        spent=$(human_time $(git config branch.$branch.spent))
+        issue=$(git config branch.$branch.issue)
+        if [ "$branch" == "$current_branch" ]
         then 
             printf "* "
             txtyellow "%-2s " "$issue" 
-            printf "%-${lwidth}s " "$timer" 
+            printf "%-${lwidth}s " "$branch" 
             printf  "%${rwidth}s"  "$spent"
             on_status && mode_status
         else 
             txtyellow "  %-2s " "$issue" 
-            printf "%-${lwidth}s " "$timer" 
+            printf "%-${lwidth}s " "$branch" 
             printf  "%${rwidth}s"  "$spent"
         fi
         echo
@@ -293,16 +289,9 @@ function gtt_add() {
     t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
-function gtt_timer_delete() {
-    for timer in "$@"; do
-        spent=$(config_get $timer.spent)
-        [ -z $spent ] && echo "timer $timer not found" && exit 1
-        git config --remove-section timetrack.$timer 2> /dev/null
-    done
-}
 function gtt_timer_info() {
     for timer in "$@"; do
-        spent=$(config_get $timer.spent)
+        spent=$(git config branch.$timer.spent)
         [ -z $spent ] && echo "timer $timer not found" && exit 1
         echo "Time spent in $timer: $(human_time $spent)"
     done
@@ -345,11 +334,11 @@ function gtt_task_new() {
             echo "$ghi_out"
             for line in $ghi_out; do
                 number=$(expr $line : '^#\([0-9]*\):')
-                [ "$number" ] && config_set $name.issue $number && break
+                [ "$number" ] && git config branch.$name.issue $number && break
             done
         ;;
         -i)
-            config_set $name.issue $issue
+            git config branch.$name.issue $issue
         ;;
     esac
 }
@@ -361,12 +350,11 @@ function gtt_task_delete() {
         [ "$ans" != "y" ] && exit 1
 
         git branch -d $task
-        gtt_timer_delete $task
     done
 }
 function gtt_task_connect() {
-    branch=$(config_get branch)
-    issue=${1:-$(config_get $branch.issue)}
+    branch=$(current_branch)
+    issue=${1:-$(git config branch.$branch.issue)}
     [ -z "$issue" ] && txtred "Need issue number\n" && exit 1
 
     # check if the branch has upstream
@@ -376,7 +364,7 @@ function gtt_task_connect() {
 
     echo
     ghi edit --head $branch $issue
-    config_set $branch.issue $issue
+    git config branch.$branch.issue $issue
 }
 
 
@@ -413,9 +401,6 @@ case $subcommand in
     add|-g)
         gtt_add "$@"
         gtt_current
-    ;;
-    timer-delete)
-        gtt_timer_delete "$@"
     ;;
     timer-info)
         gtt_timer_info "$@"
@@ -485,9 +470,10 @@ case $subcommand in
         branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
         for branch in $branches; do
             spent_get $branch &> /dev/null
+            # spent_set $(spent_get $branch) $branch
         done
 
-        txtgreen "Git timetrack configured. "
+        txtgreen "Git timetrack is configured. "
         echo "Now run git pull if you don't want problems"
     ;;
     init)
