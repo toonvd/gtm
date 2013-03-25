@@ -274,9 +274,10 @@ function gtt_list() {
 function gtt_summary() {
     alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
     allusers=$(git log --format="%ae" | sort | uniq)
-    commits=$(git log --oneline)
-    percent=$(( ${#alltimes} * 100 / ${#commits} ))
-    echo "${#alltimes} of ${#commits} commits have time information ($percent%)"
+    commits=$((`git log --oneline | wc -l`))
+    timed_commits=$((`git log --format="%N"  | grep "Time-spent:" | wc -l`))
+    percent=$(( $timed_commits * 100 / $commits ))
+    echo "$timed_commits of $commits commits have time information ($percent%)"
 
     echo -n "Total time spent by authors in branch "
     txtblue "[$(current_branch)]\n"
