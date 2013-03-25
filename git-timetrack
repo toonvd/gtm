@@ -107,15 +107,18 @@ if (( $3 == 1 )) # if branch is switched
 then
     # save state of old branch
     old_branch=$(git config timetrack.branch)
-    spent=$(git-timetrack current -s)
-    on=$(git config timetrack.start)
+    start=$(git config timetrack.start)
+    spent=$(git config timetrack.$old_branch.spent)
+    now=$(date +%s)
+
+    [ "$start" ] && spent=$(( $spent + $now - $start ))
+    git config timetrack.$old_branch.spent $spent
     git config --unset timetrack.start
-    git config branch.$old_branch.spent $spent
 
     # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
     git config timetrack.branch $current_branch
-    [ "$on" ] && git-timetrack start &> /dev/null
+    [ "$start" ] && git-timetrack start &> /dev/null
 
     git-timetrack list
 fi'
