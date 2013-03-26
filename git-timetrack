@@ -50,6 +50,13 @@ txt_() {
 err() {
     txtred "$1\n" && exit 1
 }
+confirm() {
+    echo "$1"
+    read -n 1 -p "`txtgray "[press enter to continue]"`"
+    # now go up one line and erase it
+    tput cuu1 && tput el
+    echo
+}
 
 
 ### USAGE
@@ -359,14 +366,16 @@ function gtt_task_new() {
             ghi show $issue
         ;;
     esac
-    read -p "Do you want to continue? [y/n]" ans
-    [ "$ans" != "y" ] && exit 1
+    confirm
 
     git checkout -b $name
 
     # issue binding
     case $issue_flag in
-        -m)
+        -i)
+            git config branch.$name.issue $issue
+        ;;
+        *)
             ghi_out=$(ghi open  --claim  $labels  "${@:2}")
             echo
             echo "$ghi_out"
@@ -375,31 +384,44 @@ function gtt_task_new() {
                 [ "$number" ] && git config branch.$name.issue $number && break
             done
         ;;
-        -i)
-            git config branch.$name.issue $issue
-        ;;
     esac
 }
 function gtt_task_connect() {
-    branch=$(current_branch)
-    issue=${1:-$(git config branch.$branch.issue)}
-    [ -z "$issue" ] && err "Need issue number"
+    while (( $# )); do
+        case $1 in
+            -b)
+                [ ! $2 ] && err "Need an argument for -b: base branch name"
+                branch=$2
+                ;;
+            -i)
+                [ ! $2 ] && err "Need an argument for -i: issue number"
+                issue=$2
+                ;;
+            *)
+                err "Wrong options"
+                ;;
+        esac
+        shift 2
+    done
+    branch=${branch:-$(current_branch)}
+    issue=${issue:-$(git config branch.$branch.issue)}
+    if [ -z "$issue" ]; then
+        txtred "Please provide issue number with -i option:\n"
+        ghi list && exit 1
+    fi
 
-    # check if the branch has upstream
-    git rev-parse --abbrev-ref $branch@{upstream} &> /dev/null
-    u=$( (( $? != 0 )) && echo "-u" )
-    git push "$u" origin $branch
-
-    echo
-    ghi edit --head $branch $issue
     git config branch.$branch.issue $issue
+    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$branch]`"
+    ghi edit --head $branch $issue
+    (( $? != 0 )) && txtred "Couldn't transform issue to pull-request. "
+    echo "Push commits and call 'gtt task-connect -b `txtblue $branch`' again"
 }
 function gtt_task_close() {
     branch=$(current_branch)
     [ "$branch" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
 
     dirty=$(git status -s)
-    [ "$dirty" ] && err "You have uncommited changes. Please, commit them before"
+    [ "$dirty" ] && err "You have uncommited changes. Please, commit them first"
 
     while (( $# )); do
         case $1 in
@@ -423,27 +445,27 @@ function gtt_task_close() {
     if [ ! "$issue" ]; then 
         txtred "Task is not connected to any issue."
         echo " Choose one of existing and use '-i <number>' option or create a new one"
-        ghi list
-        exit 1
+        ghi list && exit 1
     fi
 
-    echo "This command will"
-    echo "1. `txt_ push` `txtblue [$branch]` branch"
-    echo "2. make a `txt_ pull-request` from the issue `txtyellow \#${issue}`"
-    echo "3. `txt_ switch` to the `txtgreen [$base]` branch"
-    echo "4. `txt_ merge` `txtblue [$branch]` into `txtgreen [$base]`"
-    echo "5. `txt_ push` `txtgreen [$base]` branch and timetracker notes"
-    echo "   (it will `txt_ close` connected issue `txtyellow \#${issue}`)"
-    echo "6. `txt_ delete` `txtblue [$branch]` task"
-
-    read -p "Do you want to continue? [y/n]" ans
-    [ "$ans" != "y" ] && exit 1
-
-    gtt_task_connect $issue
+    confirm "1. Try to merge `txtblue [$branch]` into `txtgreen [$base]`"
     git checkout $base
     git merge --no-ff $branch
+    (( $? != 0 )) && err "Couldn't merge branch [$branch] into [$base]"
+    echo
+    confirm "2. Push `txtblue [$branch]` branch"
+    git push -u origin $branch
+    echo
+    confirm "3. Transform issue `txtyellow \#${issue}` into a pull-request"
+    gtt_task_connect $issue
+    echo
+    confirm "4. Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     git push origin $base && git push
+    echo
+    confirm "5. Delete `txtblue [$branch]` task"
     git branch -d $branch
+    echo
+
     ghi show $issue
 }
 
