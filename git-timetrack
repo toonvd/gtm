@@ -209,11 +209,26 @@ function on_status() {
 function mode_status() {
     [ $(config_get hacking) ] && txtblue " [non-stop]"
 }
+
+function gitdir() {
+    echo "$(git rev-parse --git-dir 2> /dev/null)"
+}
 ### SUBCOMMANDS
 
 function gtt_start() {
-    config_set start $(date +%s)
-    spent_get &> /dev/null
+    [ ! $(gitdir) ] && err "It's not a git root directory!"
+
+    current_repo=$(git config --global timetrack.repo)
+    current_dir=$(pwd -P)
+    if [ "$current_repo" == "$current_dir" ]; then
+        gtt_current
+    else
+        [ "$current_repo" ] && gtt_stop
+        config_set start $(date +%s)
+        spent_get > /dev/null
+        git config --global timetrack.repo $current_dir
+        echo "`gtt_current --no-status` `txtgreen [started]``mode_status`"
+    fi
 }
 function gtt_hacking() {
     gtt_start
@@ -223,22 +238,32 @@ function gtt_reset() {
     git config --unset timetrack.start
     git config --unset branch.$(current_branch).spent
 }
+
 function gtt_stop() {
-    # [ ! $(config_get start) ] && err "Nothing to stop"
-    spent_set $(current_time)
-    git config --unset timetrack.start
+    current_repo=$(git config --global timetrack.repo)
+    if [ ! "$current_repo" ]; then
+        [ ! $(gitdir) ] && err "No running timers"
+        gtt_current
+    else
+        current_dir=$(pwd -P)
+        [ "$current_repo" != "$current_dir" ] && cd $current_repo
+        spent_set $(current_time)
+        git config --unset timetrack.start
+
+        printf "`gtt_current --no-status` `txtred [paused]` `mode_status`"
+        [ "$current_repo" != "$current_dir" ] && echo " in `txtblue [$current_repo]`" || echo
+
+        [ "$current_repo" != "$current_dir" ] && cd $current_dir
+        git config --global --unset timetrack.repo
+    fi
 }
+
 function gtt_current() {
     spent=$(current_time)
     [ "$1" == "-s" ] && echo $spent && exit 0
-
-    # if (( $spent == 0 )); then
-    #     echo "Timer is empty"
-    # else
-        echo -n "$(human_time $spent)"
-        on_status && mode_status
-        echo
-    # fi
+    echo -n "$(human_time $spent)"
+    [ "$1" != "--no-status" ] && on_status && mode_status
+    echo
 }
 function gtt_list() {
     branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
@@ -422,6 +447,44 @@ function gtt_task_close() {
     ghi show $issue
 }
 
+function gtt_addhooks() {
+    [ ! "$(gitdir)" ] && err "It's not a git root directory!"
+
+    hooksdir="$(gitdir)/hooks"
+    [ ! -d $hooksdir ] && mkdir $hooksdir
+
+    post_commit="$hooksdir/post-commit"
+    post_commit_hook > $post_commit
+    chmod +x $post_commit
+
+    post_merge="$hooksdir/post-merge"
+    post_merge_hook > $post_merge
+    chmod +x $post_merge
+
+    post_checkout="$hooksdir/post-checkout"
+    post_checkout_hook > $post_checkout
+    chmod +x $post_checkout
+
+    txtgreen "Hooks created: "
+    echo "post-commit, post-merge, post-checkout"
+}
+function gtt_config() {
+    remote=${1:-origin}
+    git config --add remote.$remote.push "refs/notes/timetracker:refs/notes/timetracker"
+    git config --add remote.$remote.fetch "+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
+    git config notes.rewriteRef "refs/notes/timetracker"
+    git config notes.displayRef "refs/notes/timetracker"
+    config_set branch $(current_branch)
+
+    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    for branch in $branches; do
+        spent_get $branch &> /dev/null
+        # spent_set $(spent_get $branch) $branch
+    done
+
+    txtgreen "Git timetrack is configured. "
+    echo "Now run git pull if you don't want problems"
+}
 
 #############
 
@@ -431,16 +494,31 @@ subcommand=$1
 shift
 
 case $subcommand in
+    stop|-p)
+        gtt_stop
+        exit 0
+    ;;
+    usage|-h|--help|help)
+        show_help
+        exit 0
+    ;;
+    prompt-status)
+        if [ "$(git config timetrack.branch)" ]; then 
+            on_status && human_time $(current_time) --short 
+        else
+            txtgray "%15s" $(date +%T)
+        fi
+        exit 0
+    ;;
+esac
+
+[ ! $(gitdir) ] && err "It's not a git root directory!"
+case $subcommand in
     start|-s)
         gtt_start
-        gtt_current
     ;;
     hacking|-k)
         gtt_hacking
-        gtt_current
-    ;;
-    stop|-p)
-        gtt_stop
         gtt_current
     ;;
     current|-c)
@@ -496,47 +574,14 @@ case $subcommand in
         human_time ${1:?"need time in seconds"}
     ;;
     addhooks)
-        gitdir="$(git rev-parse --git-dir)"
-        [ ! -d $gitdir ] && err "It's not a git root directory!"
-
-    	hooksdir="$gitdir/hooks"
-    	[ ! -d $hooksdir ] && mkdir $hooksdir
-
-        post_commit="$hooksdir/post-commit"
-        post_commit_hook > $post_commit
-        chmod +x $post_commit
-
-        post_merge="$hooksdir/post-merge"
-        post_merge_hook > $post_merge
-        chmod +x $post_merge
-
-        post_checkout="$hooksdir/post-checkout"
-        post_checkout_hook > $post_checkout
-        chmod +x $post_checkout
-
-        txtgreen "Hooks created: "
-        echo "post-commit, post-merge, post-checkout"
+        gtt_addhooks
     ;;
     config)
-        remote=${1:-origin}
-        git config --add remote.$remote.push "refs/notes/timetracker:refs/notes/timetracker"
-        git config --add remote.$remote.fetch "+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
-        git config notes.rewriteRef "refs/notes/timetracker"
-        git config notes.displayRef "refs/notes/timetracker"
-        config_set branch $(current_branch)
-
-        branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
-        for branch in $branches; do
-            spent_get $branch &> /dev/null
-            # spent_set $(spent_get $branch) $branch
-        done
-
-        txtgreen "Git timetrack is configured. "
-        echo "Now run git pull if you don't want problems"
+        gtt_config
     ;;
     init)
-        git timetrack addhooks
-        git timetrack config
+        gtt_addhooks
+        gtt_config
     ;;
     merge)
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
@@ -549,16 +594,6 @@ case $subcommand in
     ;;
     task-close)
         gtt_task_close "$@"
-    ;;
-    prompt-status)
-        if [ "$(git config timetrack.branch)" ]; then 
-            on_status && human_time $(current_time) --short 
-        else
-            txtgray "%15s" $(date +%T)
-        fi
-    ;;
-    usage|-h|--help|help)
-        show_help
     ;;
     *)
         txtred "Wrong subcommand: "; echo "$subcommand"
