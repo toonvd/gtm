@@ -413,8 +413,10 @@ function gtt_task_connect() {
     git config branch.$branch.issue $issue
     echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$branch]`"
     ghi edit --head $branch $issue
-    (( $? != 0 )) && txtred "Couldn't transform issue to pull-request. "
-    echo "Push commits and call 'gtt task-connect -b `txtblue $branch`' again"
+    if (( $? != 0 )); then 
+        txtred "Couldn't transform issue to pull-request. "
+        echo "Push commits and call 'gtt task-connect -b `txtblue $branch`' again"
+    fi
 }
 function gtt_task_close() {
     branch=$(current_branch)
