@@ -268,7 +268,7 @@ function gtt_current() {
 function gtt_list() {
     branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     current_branch=$(current_branch)
-    [ $(config_get start) ] && gtt_stop && gtt_start
+    [ $(config_get start) ] && gtt_stop > /dev/null && gtt_start > /dev/null
     lwidth=10
     rwidth=0
     for branch in $branches; do
