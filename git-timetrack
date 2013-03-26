@@ -457,7 +457,7 @@ function gtt_task_close() {
     git push -u origin $branch
     echo
     confirm "3. Transform issue `txtyellow \#${issue}` into a pull-request"
-    gtt_task_connect $issue
+    gtt_task_connect -b $branch -i $issue
     echo
     confirm "4. Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     git push origin $base && git push
