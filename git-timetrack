@@ -254,7 +254,7 @@ function gtt_stop() {
         [ "$current_repo" != "$current_dir" ] && echo " in `txtblue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
-        git config --global --unset timetrack.repo
+        git config --global --remove-section timetrack &> /dev/null
     fi
 }
 
@@ -367,7 +367,7 @@ function gtt_task_new() {
     # issue binding
     case $issue_flag in
         -m)
-            ghi_out=$(ghi open  --claim  -m "$issue" $labels "${@:3}")
+            ghi_out=$(ghi open  --claim  $labels  "${@:2}")
             echo
             echo "$ghi_out"
             for line in $ghi_out; do
