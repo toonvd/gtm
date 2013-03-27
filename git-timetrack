@@ -519,7 +519,7 @@ function gtt_config() {
 
 #############
 
-(( $# == 0 )) && gtt_current && exit 0
+(( $# == 0 )) && gtt_list && exit 0
 
 subcommand=$1
 shift
