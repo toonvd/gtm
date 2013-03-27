@@ -494,8 +494,15 @@ function gtt_addhooks() {
 }
 function gtt_config() {
     remote=${1:-origin}
-    git config --add remote.$remote.push "refs/notes/timetracker:refs/notes/timetracker"
-    git config --add remote.$remote.fetch "+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
+
+    push="refs/notes/timetracker:refs/notes/timetracker"
+    exists=$(git config --get-all remote.$remote.push | grep "$push")
+    [ ! "$exists" ] && git config --add remote.$remote.push $push
+
+    fetch="+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
+    exists=$(git config --get-all remote.$remote.fetch | grep "$fetch")
+    [ ! "$exists" ] && git config --add remote.$remote.fetch $fetch
+
     git config notes.rewriteRef "refs/notes/timetracker"
     git config notes.displayRef "refs/notes/timetracker"
     config_set branch $(current_branch)
