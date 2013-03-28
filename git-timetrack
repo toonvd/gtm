@@ -209,6 +209,10 @@ function user_time_dedication() {
     echo $total
 }
 
+function running() {
+    echo "$(git config timetrack.start)"
+}
+
 function on_status() {
     [ $(config_get start) ] && txtgreen "  [on]" || txtred " [off]"
 }
@@ -223,11 +227,10 @@ function gtt_start() {
 
     current_repo=$(git config --global timetrack.repo)
     current_dir=$(pwd -P)
-    started=$(config_get start)
-    if [ "$current_repo" == "$current_dir" ] && [ "$started" ]; then
+    if [ "$current_repo" == "$current_dir" ] && [ $(running) ]; then
         gtt_current
     else
-        [ "$current_repo" ] && gtt_stop
+        [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtt_stop
         config_set start $(date +%s)
         spent_get > /dev/null
         git config --global timetrack.repo $current_dir
