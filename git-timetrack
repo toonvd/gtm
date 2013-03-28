@@ -389,9 +389,13 @@ function gtt_task_new() {
 function gtt_task_connect() {
     while (( $# )); do
         case $1 in
+            -h)
+                [ ! $2 ] && err "Need an argument for -h: branch that you want to connect"
+                head=$2
+                ;;
             -b)
                 [ ! $2 ] && err "Need an argument for -b: base branch name"
-                branch=$2
+                base=$2
                 ;;
             -i)
                 [ ! $2 ] && err "Need an argument for -i: issue number"
@@ -403,19 +407,20 @@ function gtt_task_connect() {
         esac
         shift 2
     done
-    branch=${branch:-$(current_branch)}
-    issue=${issue:-$(git config branch.$branch.issue)}
+    head=${head:-$(current_branch)}
+    base=${base:-master}
+    issue=${issue:-$(git config branch.$head.issue)}
     if [ -z "$issue" ]; then
         txtred "Please provide issue number with -i option:\n"
         ghi list && exit 1
     fi
 
-    git config branch.$branch.issue $issue
-    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$branch]`"
-    ghi edit --head $branch $issue
+    git config branch.$head.issue $issue
+    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$head]`"
+    ghi edit --head $head --base $base $issue
     if (( $? != 0 )); then 
         txtred "Couldn't transform issue to pull-request. "
-        echo "Push commits and call 'gtt task-connect -b `txtblue $branch`' again"
+        echo "Push commits and try to connect again again"
     fi
 }
 function gtt_task_close() {
@@ -450,21 +455,21 @@ function gtt_task_close() {
         ghi list && exit 1
     fi
 
-    confirm "1. Try to merge `txtblue [$branch]` into `txtgreen [$base]`"
+    confirm "`txtbold 1.` Try to merge `txtblue [$branch]` into `txtgreen [$base]`"
     git checkout $base
     git merge --no-ff $branch
     (( $? != 0 )) && err "Couldn't merge branch [$branch] into [$base]"
     echo
-    confirm "2. Push `txtblue [$branch]` branch"
+    confirm "`txtbold 2.` Push `txtblue [$branch]` branch"
     git push -u origin $branch
     echo
-    confirm "3. Transform issue `txtyellow \#${issue}` into a pull-request"
-    gtt_task_connect -b $branch -i $issue
+    confirm "`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
+    gtt_task_connect -h $branch -b $base -i $issue
     echo
-    confirm "4. Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
+    confirm "`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     git push origin $base && git push
     echo
-    confirm "5. Delete `txtblue [$branch]` task"
+    confirm "`txtbold 5.` Delete `txtblue [$branch]` task"
     git branch -d $branch
     echo
 
