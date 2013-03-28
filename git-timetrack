@@ -499,6 +499,8 @@ function gtt_addhooks() {
 }
 function gtt_config() {
     remote=${1:-origin}
+    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    [ ! "$branches" ] && err "Looks like an empty repository. Make an init commit and try again."
 
     push="refs/notes/timetracker:refs/notes/timetracker"
     exists=$(git config --get-all remote.$remote.push | grep "$push")
@@ -512,7 +514,6 @@ function gtt_config() {
     git config notes.displayRef "refs/notes/timetracker"
     config_set branch $(current_branch)
 
-    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     for branch in $branches; do
         spent_get $branch &> /dev/null
         # spent_set $(spent_get $branch) $branch
