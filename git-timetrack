@@ -67,7 +67,6 @@ Usage: git timetrack command [options]
 
 Current timer commands:
     start,     -s               start/continue counting time spent
-    hacking,   -k               start/continue counting time spent, won't stop (only reset) on commit
     stop,      -p               stop/pause counting time spent
     reset,     -r               reset counting time spent
     add,       -g <[-]minutes>  add (or substract) time from the timer
@@ -94,15 +93,15 @@ Configuration commands:
 function post_commit_hook() {
 echo '#!/bin/bash
 
-hacking=$(git config timetrack.hacking)
+running=$(git config timetrack.start)
 git-timetrack stop > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
-git-timetrack reset
+git config --unset branch.$current_branch.spent
 
 if [ $spent ]; then
     git notes --ref timetracker add -m "Time-spent: $spent"
-    [ $hacking ] && git-timetrack start > /dev/null
+    [ $running ] && git-timetrack start > /dev/null
     echo "Time-spent: $(git-timetrack human-time $spent)"
 fi'
 }
@@ -121,14 +120,14 @@ echo '#!/bin/bash
 
 if (( $3 == 1 )) # if branch is switched
 then
-    # save state of old branch
     old_branch=$(git config timetrack.branch)
     start=$(git config timetrack.start)
     spent=$(git config branch.$old_branch.spent)
     now=$(date +%s)
 
+    # save state of old branch
     [ $start ] && spent=$(( $spent + $now - $start ))
-    git config branch.$old_branch.spent $spent
+    git config branch.$old_branch.spent ${spent:-0}
     git config --unset timetrack.start
 
     # use new branch
@@ -213,9 +212,6 @@ function user_time_dedication() {
 function on_status() {
     [ $(config_get start) ] && txtgreen "  [on]" || txtred " [off]"
 }
-function mode_status() {
-    [ $(config_get hacking) ] && txtblue " [non-stop]"
-}
 
 function gitdir() {
     echo "$(git rev-parse --git-dir 2> /dev/null)"
@@ -227,20 +223,17 @@ function gtt_start() {
 
     current_repo=$(git config --global timetrack.repo)
     current_dir=$(pwd -P)
-    if [ "$current_repo" == "$current_dir" ]; then
+    started=$(config_get start)
+    if [ "$current_repo" == "$current_dir" ] && [ "$started" ]; then
         gtt_current
     else
         [ "$current_repo" ] && gtt_stop
         config_set start $(date +%s)
         spent_get > /dev/null
         git config --global timetrack.repo $current_dir
-        echo "`gtt_current --no-status` `txtgreen [started]``mode_status`"
+        echo "`gtt_current --no-status` `txtgreen [started]`"
     fi
 }
-function gtt_hacking() {
-    gtt_start
-    config_set hacking true
-} 
 function gtt_reset() {
     git config --unset timetrack.start
     git config --unset branch.$(current_branch).spent
@@ -257,7 +250,7 @@ function gtt_stop() {
         spent_set $(current_time)
         git config --unset timetrack.start
 
-        printf "`gtt_current --no-status` `txtred [paused]` `mode_status`"
+        printf "`gtt_current --no-status` `txtred [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `txtblue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
@@ -267,9 +260,9 @@ function gtt_stop() {
 
 function gtt_current() {
     spent=$(current_time)
-    [ "$1" == "-s" ] && echo $spent && exit 0
+    [ "$1" == "--seconds" ] && echo $spent && exit 0
     echo -n "$(human_time $spent)"
-    [ "$1" != "--no-status" ] && on_status && mode_status
+    [ "$1" != "--no-status" ] && on_status
     echo
 }
 function gtt_list() {
@@ -294,7 +287,7 @@ function gtt_list() {
             txtyellow "%-2s " "$issue" 
             printf "%-${lwidth}s " "$branch" 
             printf  "%${rwidth}s"  "$spent"
-            on_status && mode_status
+            on_status
         else 
             txtyellow "  %-2s " "$issue" 
             printf "%-${lwidth}s " "$branch" 
@@ -554,10 +547,6 @@ case $subcommand in
     start|-s)
         gtt_start
     ;;
-    hacking|-k)
-        gtt_hacking
-        gtt_current
-    ;;
     current|-c)
         gtt_current "$@"
     ;;
@@ -582,14 +571,14 @@ case $subcommand in
         sha=${1:?"need commit sha"}
         gtt_stop
         spent=$(spent_get)
-        hacking=$(config_get hacking)
+        running=$(config_get start)
         gtt_reset
 
         if [ $spent ]; then 
             git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
             echo "Time spent: $(human_time $spent)"
         fi
-        [ $hacking ] && config_set start $(date +%s)
+        [ $running ] && config_set start $(date +%s)
     ;;
     delete|-d)
         git notes --ref timetracker remove ${1:-HEAD}
