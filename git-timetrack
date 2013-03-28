@@ -276,21 +276,22 @@ function gtt_list() {
         spent=$(human_time $(git config branch.$branch.spent))
         (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
+    lwidth=$(( lwidth + 2 )) # for [...]
 
-    txt_ "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent"
+    txt_ "$(txtbold "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent")"
     for branch in $branches; do
         spent=$(human_time $(git config branch.$branch.spent))
         issue=$(git config branch.$branch.issue)
         if [ "$branch" == "$current_branch" ]
         then 
-            printf "* "
+            [ $(config_get start) ] && txtgreen "* " || txtred "* "
             txtyellow "%-2s " "$issue" 
-            printf "%-${lwidth}s " "$branch" 
+            txtblue "%-${lwidth}s " "[$branch]" 
             printf  "%${rwidth}s"  "$spent"
             on_status
         else 
             txtyellow "  %-2s " "$issue" 
-            printf "%-${lwidth}s " "$branch" 
+            txtblue "%-${lwidth}s " "[$branch]" 
             printf  "%${rwidth}s"  "$spent"
         fi
         echo
