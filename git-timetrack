@@ -340,9 +340,12 @@ function gtt_timer_info() {
 }
 
 function gtt_task_new() {
-    name=${1:?"need a branch name for working on task"}
+    name=$1
+    [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
+    [ "$name" == "-" ] && name=$(current_branch)
+
     issue_flag=$2
-    # [ "$2" != "-m" ] && [ "$2" != "-i" ] && show_help && exit 1
+    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-i" ] && err "Wrong option: $issue_flag"
     issue=$3
 
     prefix=${name%/*}
@@ -351,35 +354,43 @@ function gtt_task_new() {
     [ "$prefix" != "$name" ] && labels=" -L "${prefix//\// -L }
 
     # info and confirmation
-    echo "This command will create"
-    echo -n "- local branch with name "; txtblue "[$name]\n"
+    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    exists=$(echo $branches | grep "$name")
+    if [ "$exists" ]; then
+        step1="`txtbold 1.` Use an existing branch `txtblue [$name]`"
+    else
+        step1="`txtbold 1.` Create a new branch `txtblue [$name]`"
+    fi
     case $issue_flag in
-        -m)
-            echo -n "- github issue with name "; txtyellow "\"$issue\"\n"
-            [ "$labels" ] && echo "  and tags: ${prefix//\//, }"
-        ;;
         -i)
-            echo "And bind it to the issue:"
-            ghi show $issue
+            step2="`txtbold 2.` Bind the task to an existing issue `txtyellow \#$issue`:"
+        ;;
+        -m)
+            step2="`txtbold 2.` Bind the task to a new issue `txtyellow \"$issue\"`"
+            [ "$labels" ] && step2=$step2" with tags: ${prefix//\//, }"
         ;;
     esac
+    echo $step1
+    echo $step2
+    [ "$issue_flag" == "-i" ] && ghi show $issue
     confirm
 
-    git checkout -b $name
+    [ ! "$exists" ] && git checkout -b $name
 
     # issue binding
     case $issue_flag in
         -i)
             git config branch.$name.issue $issue
+            echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
         ;;
-        *)
-            ghi_out=$(ghi open  --claim  $labels  "${@:2}")
-            echo
-            echo "$ghi_out"
-            for line in $ghi_out; do
-                number=$(expr $line : '^#\([0-9]*\):')
-                [ "$number" ] && git config branch.$name.issue $number && break
-            done
+        -m)
+            ghi_out=$(ghi open  --claim  $labels  "${@:2}" | grep "#")
+            number=$(expr $ghi_out : '^#\([0-9]*\):')
+            if [ "$number" ]; then 
+                git config branch.$name.issue $number
+                ghi show $number
+                echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
+            fi
         ;;
     esac
 }
