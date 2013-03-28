@@ -15,10 +15,10 @@ export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 # Text color variables
 tund=$(tput sgr 0 1) # underline
 tbld=$(tput bold)    # bold
-tred=$(tput setaf 88) # red
-tgrn=$(tput setaf 28) # green
+tred=$(tput setaf 1) # red
+tgrn=$(tput setaf 2) # green
 tyel=$(tput setaf 3) # yellow
-tblu=$(tput setaf 32) # blue
+tblu=$(tput setaf 4) # blue
 tgry=$(tput setaf 8) # gray
 trst=$(tput sgr0)    # reset
 # Surroungings
