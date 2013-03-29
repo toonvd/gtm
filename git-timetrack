@@ -384,8 +384,8 @@ function gtt_task_new() {
             echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
         ;;
         -m)
-            ghi_out=$(ghi open  --claim  $labels  "${@:2}" | grep "#")
-            number=$(expr $ghi_out : '^#\([0-9]*\):')
+            ghi_out=$(ghi open  --claim  $labels  "${@:2}")
+            number=$(echo $ghi_out | grep '#' | sed 's/^#\([0-9]*\):.*$/\1/')
             if [ "$number" ]; then 
                 git config branch.$name.issue $number
                 ghi show $number
