@@ -276,9 +276,17 @@ function gtt_stop() {
 function gtt_current() {
     spent=$(current_time)
     [ "$1" == "--seconds" ] && echo $spent && exit 0
+    current_dir=$(pwd -P)
+    if [ "$1" == "--global" ]; then
+        current_repo=$(git config --global timetrack.repo)
+        if [ "$current_repo" != "$current_dir" ]; then
+            cd ${current_repo:-.}
+            echo -n "`pwd`: "; txtblue "[`current_branch`] "
+        fi
+    fi
     echo -n "$(human_time $spent)"
-    [ "$1" != "--no-status" ] && on_status
-    echo
+    [ "$1" != "--no-status" ] && echo "`on_status`"
+    [ "$current_repo" ] && cd $current_dir
 }
 function gtt_list() {
     branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
