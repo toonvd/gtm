@@ -90,6 +90,18 @@ Configuration commands:
 
 ### HOOKS
 
+function pre_commit_hook() {
+echo '#!/bin/bash
+# check if the timer is not zero
+time=$(git-timetrack current --seconds)
+if (( $time == 0 )); then
+    echo "`tput setaf 1`You forgot to set the timer!`tput sgr0`"
+    exit 1
+fi
+'
+}
+
+
 function post_commit_hook() {
 echo '#!/bin/bash
 
@@ -99,7 +111,7 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
 git config --unset branch.$current_branch.spent
 
-if [ $spent ]; then
+if (( ${spent:-0} > 0 )); then
     git notes --ref timetracker add -m "Time-spent: $spent"
     [ $running ] && git-timetrack start > /dev/null
     echo "Time-spent: $(git-timetrack human-time $spent)"
@@ -490,6 +502,10 @@ function gtt_addhooks() {
     hooksdir="$(gitdir)/hooks"
     [ ! -d $hooksdir ] && mkdir $hooksdir
 
+    pre_commit="$hooksdir/pre-commit"
+    pre_commit_hook > $pre_commit
+    chmod +x $pre_commit
+
     post_commit="$hooksdir/post-commit"
     post_commit_hook > $post_commit
     chmod +x $post_commit
@@ -503,7 +519,7 @@ function gtt_addhooks() {
     chmod +x $post_checkout
 
     txtgreen "Hooks created: "
-    echo "post-commit, post-merge, post-checkout"
+    echo "pre-commit, post-commit, post-merge, post-checkout"
 }
 function gtt_config() {
     remote=${1:-origin}
