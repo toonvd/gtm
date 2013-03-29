@@ -345,7 +345,7 @@ function gtt_task_new() {
     [ "$name" == "-" ] && name=$(current_branch)
 
     issue_flag=$2
-    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-i" ] && err "Wrong option: $issue_flag"
+    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong option: $issue_flag"
     issue=$3
 
     prefix=${name%/*}
