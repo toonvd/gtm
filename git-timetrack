@@ -99,7 +99,7 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
 git config --unset branch.$current_branch.spent
 
-if [ $spent ]; then
+if (( ${spent:-0} > 0 )); then
     git notes --ref timetracker add -m "Time-spent: $spent"
     [ $running ] && git-timetrack start > /dev/null
     echo "Time-spent: $(git-timetrack human-time $spent)"
