@@ -366,7 +366,7 @@ function gtt_task_new() {
             step2="`txtbold 2.` Bind the task to an existing issue `txtyellow \#$issue`:"
         ;;
         -m)
-            step2="`txtbold 2.` Bind the task to a new issue `txtyellow \"$issue\"`"
+            step2="`txtbold 2.` Bind the task to a new issue "$(txtyellow "\"$issue\"")
             [ "$labels" ] && step2=$step2" with tags: ${prefix//\//, }"
         ;;
     esac
