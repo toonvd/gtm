@@ -505,6 +505,11 @@ function gtt_task_switch() {
     task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
     git checkout $task
 }
+function gtt_task_show() {
+    issue=$(git config branch.$(current_branch).issue)
+    [ "$1" == "-w" ] && web="-w"
+    ghi show $issue $web
+}
 
 function gtt_addhooks() {
     [ ! "$(gitdir)" ] && err "It's not a git root directory!"
@@ -665,6 +670,9 @@ case $subcommand in
             ;;
             switch)
                 gtt_task_switch "$@"
+            ;;
+            show|*)
+                gtt_task_show "$@"
             ;;
         esac
     ;;
