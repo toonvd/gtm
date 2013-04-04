@@ -497,6 +497,14 @@ function gtt_task_close() {
 
     ghi show $issue
 }
+function gtt_task_switch() {
+    issue=$1
+    [ ! "$issue" ] && gtt_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
+    [ "$issue" == "-" ] && git checkout master
+
+    task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+    git checkout $task
+}
 
 function gtt_addhooks() {
     [ ! "$(gitdir)" ] && err "It's not a git root directory!"
@@ -654,6 +662,9 @@ case $subcommand in
             ;;
             close)
                 gtt_task_close "$@"
+            ;;
+            switch)
+                gtt_task_switch "$@"
             ;;
         esac
     ;;
