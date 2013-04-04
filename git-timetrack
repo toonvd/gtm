@@ -351,13 +351,6 @@ function gtt_add() {
     t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
-function gtt_timer_info() {
-    for timer in "$@"; do
-        spent=$(git config branch.$timer.spent)
-        [ -z $spent ] && echo "timer $timer not found" && exit 1
-        echo "Time spent in $timer: $(human_time $spent)"
-    done
-}
 
 function gtt_task_new() {
     name=$1
@@ -584,30 +577,27 @@ esac
 
 [ ! $(gitdir) ] && err "It's not a git root directory!"
 case $subcommand in
-    start|-s)
+    start)
         gtt_start
     ;;
-    current|-c)
+    current)
         gtt_current "$@"
     ;;
-    reset|-r)
+    reset)
         gtt_reset
     ;;
-    set|-e)
+    set)
         gtt_set "$@"
         gtt_current
     ;;
-    add|-g)
+    add)
         gtt_add "$@"
         gtt_current
-    ;;
-    timer-info)
-        gtt_timer_info "$@"
     ;;
     list)
         gtt_list
     ;;
-    ammend|-a)
+    ammend)
         sha=${1:?"need commit sha"}
         gtt_stop
         spent=$(spent_get)
@@ -620,10 +610,10 @@ case $subcommand in
         fi
         [ $running ] && config_set start $(date +%s)
     ;;
-    delete|-d)
+    delete)
         git notes --ref timetracker remove ${1:-HEAD}
     ;;
-    summary|-u)
+    summary)
         gtt_summary "$@"
     ;;
     log)
@@ -652,14 +642,20 @@ case $subcommand in
     merge)
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
-    task-new)
-        gtt_task_new "$@"
-    ;;
-    task-connect)
-        gtt_task_connect "$@"
-    ;;
-    task-close)
-        gtt_task_close "$@"
+    task)
+        subsubcommand=$1
+        shift
+        case $subsubcommand in
+            new)
+                gtt_task_new "$@"
+            ;;
+            connect)
+                gtt_task_connect "$@"
+            ;;
+            close)
+                gtt_task_close "$@"
+            ;;
+        esac
     ;;
     *)
         txtred "Wrong subcommand: "; echo "$subcommand"
