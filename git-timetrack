@@ -445,8 +445,8 @@ function gtt_task_connect() {
     fi
 }
 function gtt_task_close() {
-    branch=$(current_branch)
-    [ "$branch" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
+    task=$(current_branch)
+    [ "$task" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
 
     dirty=$(git status -s)
     [ "$dirty" ] && err "You have uncommited changes. Please, commit them first"
@@ -460,7 +460,7 @@ function gtt_task_close() {
             -i)
                 [ ! $2 ] && err "Need an argument for -i: issue number"
                 issue=$2
-                git config branch.$branch.issue $issue
+                git config branch.$task.issue $issue
                 ;;
             *)
                 err "Wrong options"
@@ -469,30 +469,30 @@ function gtt_task_close() {
         shift 2
     done
     base=${base:-master}
-    issue=${issue:-$(git config branch.$branch.issue)}
+    issue=${issue:-$(git config branch.$task.issue)}
     if [ ! "$issue" ]; then 
         txtred "Task is not connected to any issue."
         echo " Choose one of existing and use '-i <number>' option or create a new one"
         ghi list && exit 1
     fi
 
-    confirm "`txtbold 1.` Try to merge `txtblue [$branch]` into `txtgreen [$base]`"
+    confirm "`txtbold 1.` Try to merge `txtblue [$task]` into `txtgreen [$base]`"
     git checkout $base
-    git merge --no-ff $branch
-    (( $? != 0 )) && err "Couldn't merge branch [$branch] into [$base]"
+    git merge --no-ff $task
+    (( $? != 0 )) && err "Couldn't merge branch [$task] into [$base]"
     echo
-    confirm "`txtbold 2.` Push `txtblue [$branch]` branch"
-    git push -u origin $branch
+    confirm "`txtbold 2.` Push `txtblue [$task]` branch"
+    git push -u origin $task
     echo
     confirm "`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
-    gtt_task_connect -h $branch -b $base -i $issue
+    gtt_task_connect -h $task -b $base -i $issue
     echo
     confirm "`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     git push origin $base && git push
     echo
-    confirm "`txtbold 5.` Delete `txtblue [$branch]` task and move the time remained on it to `txtblue [$base]`"
-    gtt_add $(git config branch.$branch.spent)
-    git branch -d $branch
+    confirm "`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
+    spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
+    git branch -d $task
     echo
 
     ghi show $issue
