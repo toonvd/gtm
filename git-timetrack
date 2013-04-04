@@ -409,7 +409,7 @@ function gtt_task_new() {
             if [ "$number" ]; then 
                 git config branch.$name.issue $number
                 ghi show $number
-                echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
+                echo "`txtgreen Issue` `txtyellow \#$number` `txtgreen "is assigned to the task"`"
             fi
         ;;
     esac
@@ -448,7 +448,7 @@ function gtt_task_connect() {
     ghi edit --head $head --base $base $issue
     if (( $? != 0 )); then 
         txtred "Couldn't transform issue to pull-request. "
-        echo "Push commits and try to connect again again"
+        echo "Push commits and try to connect again"
     fi
 }
 function gtt_task_close() {
