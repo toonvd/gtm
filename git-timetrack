@@ -498,7 +498,7 @@ function gtt_task_close() {
     git push origin $base && git push
     echo
     confirm "`txtbold 5.` Delete `txtblue [$branch]` task and move the time remained on it to [$base]"
-    gtt_add $(git config $branch.spent)
+    gtt_add $(git config branch.$branch.spent)
     git branch -d $branch
     echo
 
