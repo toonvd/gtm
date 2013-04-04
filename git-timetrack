@@ -90,6 +90,18 @@ Configuration commands:
 
 ### HOOKS
 
+function pre_commit_hook() {
+echo '#!/bin/bash
+# check if the timer is not zero
+time=$(git-timetrack current --seconds)
+if (( $time == 0 )); then
+    echo "`tput setaf 1`You forgot to set the timer!`tput sgr0`"
+    exit 1
+fi
+'
+}
+
+
 function post_commit_hook() {
 echo '#!/bin/bash
 
@@ -99,7 +111,7 @@ current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
 git config --unset branch.$current_branch.spent
 
-if [ $spent ]; then
+if (( ${spent:-0} > 0 )); then
     git notes --ref timetracker add -m "Time-spent: $spent"
     [ $running ] && git-timetrack start > /dev/null
     echo "Time-spent: $(git-timetrack human-time $spent)"
@@ -264,9 +276,17 @@ function gtt_stop() {
 function gtt_current() {
     spent=$(current_time)
     [ "$1" == "--seconds" ] && echo $spent && exit 0
+    current_dir=$(pwd -P)
+    if [ "$1" == "--global" ]; then
+        current_repo=$(git config --global timetrack.repo)
+        if [ "$current_repo" != "$current_dir" ]; then
+            cd ${current_repo:-.}
+            echo -n "`pwd`: "; txtblue "[`current_branch`] "
+        fi
+    fi
     echo -n "$(human_time $spent)"
-    [ "$1" != "--no-status" ] && on_status
-    echo
+    [ "$1" != "--no-status" ] && echo "`on_status`"
+    [ "$current_repo" ] && cd $current_dir
 }
 function gtt_list() {
     branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
@@ -389,7 +409,7 @@ function gtt_task_new() {
             if [ "$number" ]; then 
                 git config branch.$name.issue $number
                 ghi show $number
-                echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
+                echo "`txtgreen Issue` `txtyellow \#$number` `txtgreen "is assigned to the task"`"
             fi
         ;;
     esac
@@ -428,7 +448,7 @@ function gtt_task_connect() {
     ghi edit --head $head --base $base $issue
     if (( $? != 0 )); then 
         txtred "Couldn't transform issue to pull-request. "
-        echo "Push commits and try to connect again again"
+        echo "Push commits and try to connect again"
     fi
 }
 function gtt_task_close() {
@@ -477,7 +497,8 @@ function gtt_task_close() {
     confirm "`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     git push origin $base && git push
     echo
-    confirm "`txtbold 5.` Delete `txtblue [$branch]` task"
+    confirm "`txtbold 5.` Delete `txtblue [$branch]` task and move the time remained on it to `txtblue [$base]`"
+    gtt_add $(git config branch.$branch.spent)
     git branch -d $branch
     echo
 
@@ -489,6 +510,10 @@ function gtt_addhooks() {
 
     hooksdir="$(gitdir)/hooks"
     [ ! -d $hooksdir ] && mkdir $hooksdir
+
+    pre_commit="$hooksdir/pre-commit"
+    pre_commit_hook > $pre_commit
+    chmod +x $pre_commit
 
     post_commit="$hooksdir/post-commit"
     post_commit_hook > $post_commit
@@ -503,7 +528,7 @@ function gtt_addhooks() {
     chmod +x $post_checkout
 
     txtgreen "Hooks created: "
-    echo "post-commit, post-merge, post-checkout"
+    echo "pre-commit, post-commit, post-merge, post-checkout"
 }
 function gtt_config() {
     remote=${1:-origin}
