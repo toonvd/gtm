@@ -52,12 +52,33 @@ err() {
 }
 confirm() {
     echo "$1"
-    read -n 1 -p "`txtgray "[press enter to continue]"`"
+    read -n 1 -p "`txtgray "[press any key to continue]"`"
     # now go up one line and erase it
     tput cuu1 && tput el
     echo
 }
-
+overview() {
+    echo `txtbold "Operation overview:"`
+    for s in "$@"; do
+        echo $s
+    done
+    read -n 1 -p "`txtgray "[review steps and press any key to continue]"`"
+    local n=$(( $# + 2 ))
+    until (( n == 0 )); do
+        tput cuu1 && tput el
+        n=$(( n - 1 ))
+    done
+}
+failed() {
+    local result=$1
+    local msg=${2:-"Previous step has failed"}
+    if (( $result != 0 )); then
+        echo `txtred "$msg"`
+        read -n 1 -p "`txtgray "[press Ctrl-C to stop or any other key to continue]"`"
+        tput cuu1 && tput el
+        echo
+    fi
+}
 
 ### USAGE
 
@@ -475,25 +496,36 @@ function gtt_task_close() {
         echo " Choose one of existing and use '-i <number>' option or create a new one"
         ghi list && exit 1
     fi
+    local step1="`txtbold 1.` Try to merge `txtblue [$task]` into `txtgreen [$base]`"
+    local step2="`txtbold 2.` Push `txtblue [$task]` branch"
+    local step3="`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
+    local step4="`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
+    local step5="`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
+    overview "$step1" "$step2" "$step3" "$step4" "$step5" 
 
-    confirm "`txtbold 1.` Try to merge `txtblue [$task]` into `txtgreen [$base]`"
+    echo "$step1"
     git checkout $base
     git merge --no-ff $task
-    (( $? != 0 )) && err "Couldn't merge branch [$task] into [$base]"
-    echo
-    confirm "`txtbold 2.` Push `txtblue [$task]` branch"
+    failed $? "Couldn't merge branch [$task] into [$base]"
+
+    echo "$step2"
     git push -u origin $task
-    echo
-    confirm "`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
+    failed $? "Couldn't push [$task] branch to remote origin"
+
+    echo "$step3"
     gtt_task_connect -h $task -b $base -i $issue
-    echo
-    confirm "`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
-    git push origin $base && git push
-    echo
-    confirm "`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
+    failed $?
+
+    echo "$step4"
+    git push origin $base
+    failed $? "Couldn't push [$base] branch to remote origin"
+    git push
+    failed $? "Couldn't push timetracker notes"
+
+    echo "$step5"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
     git branch -d $task
-    echo
+    failed $? "Couldn't delete branch [$task]"
 
     ghi show $issue
 }
