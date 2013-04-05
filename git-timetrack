@@ -502,31 +502,31 @@ function gtt_task_close() {
     local step4="`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
     local step5="`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
     overview "$step1" "$step2" "$step3" "$step4" "$step5" 
-
+    echo
     echo "$step1"
     git checkout $base
     git merge --no-ff $task
     failed $? "Couldn't merge branch [$task] into [$base]"
-
+    echo
     echo "$step2"
     git push -u origin $task
     failed $? "Couldn't push [$task] branch to remote origin"
-
+    echo
     echo "$step3"
     gtt_task_connect -h $task -b $base -i $issue
     failed $?
-
+    echo
     echo "$step4"
     git push origin $base
     failed $? "Couldn't push [$base] branch to remote origin"
     git push
     failed $? "Couldn't push timetracker notes"
-
+    echo
     echo "$step5"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
     git branch -d $task
     failed $? "Couldn't delete branch [$task]"
-
+    echo
     ghi show $issue
 }
 function gtt_task_switch() {
