@@ -52,48 +52,85 @@ err() {
 }
 confirm() {
     echo "$1"
-    read -n 1 -p "`txtgray "[press enter to continue]"`"
+    read -n 1 -p "`txtgray "[press any key to continue]"`"
     # now go up one line and erase it
     tput cuu1 && tput el
     echo
 }
-
+overview() {
+    echo `txtbold "Operation overview:"`
+    for s in "$@"; do
+        echo $s
+    done
+    read -n 1 -p "`txtgray "[review steps and press any key to continue]"`"
+    local n=$(( $# + 2 ))
+    until (( n == 0 )); do
+        tput cuu1 && tput el
+        n=$(( n - 1 ))
+    done
+}
+failed() {
+    local result=$1
+    local msg=${2:-"Previous step has failed"}
+    if (( $result != 0 )); then
+        echo `txtred "$msg"`
+        read -n 1 -p "`txtgray "[press Ctrl-C to stop or any other key to continue]"`"
+        tput cuu1 && tput el
+        echo
+    fi
+}
 
 ### USAGE
-
 function show_help {
 echo "
-Usage: git timetrack command [options]
+Git time tracker and task manager (c) Alexey Alekhin
 
-Current timer commands:
-    start,     -s               start/continue counting time spent
-    stop,      -p               stop/pause counting time spent
-    reset,     -r               reset counting time spent
-    add,       -g <[-]minutes>  add (or substract) time from the timer
-    set,       -e    <minutes>  set time spent in minutes
-    timesince, -ts              set time spent since last commit
-    current,   -c               time spent currently in next commit
+`txtbold 'Usage'`: `txtblue 'gtt command [options]'`
 
-Commit related commands:
-    ammend,  -a [<object>]  set currently spent time to last commit or to the given one
-    delete,  -d [<object>]  delete time-spent to last commit or to the given one
-    summary, -u [<opts>]    show summary of total time spent. takes similar options as 'git log'
-    log,     -l [<opts>]    show git log with notes translates to human time
+`txtbold 'General commands'`:
+    `txtgreen 'usage|-h|--help|help'`  -- show this mesage
+    `txtgreen init`                  -- set gtt configuration (hooks and git-config); run this in every new repository
 
-Configuration commands:
-    addhooks           adds post-commit hook and post-merge to the project
-    config [<remote>]  adds config to the project to pull and push timetrack info
-    init               setup timetrack environment, hooks and config for origin
-    merge  [<remote>]  merge timetracker notes from remote branch (origin by default)
+`txtbold 'Timer commands'`:
+    `txtgreen start`                 -- start timer
+    `txtgreen stop`                  -- pause timer
+    `txtgreen status`                -- show current timer state
+           --global       -- show current timer, even if it's not in the current repository
+       or  --seconds      -- show current timer value in seconds
+    `txtgreen add` <[-]minutes>      -- add (or substract) time from the timer
+    `txtgreen set`    <minutes>      -- set time spent in minutes
+    `txtgreen timesince`             -- set time spent since last commit
+    `txtgreen steal`                 -- steal all time from another task (master by default) and move it to the current task
+          [-i <issue>]       pick task by issue number
+       or [-b <branch>]      pick task by branch name
+    `txtgreen list`                  -- list all tasks with issue numbers and timers information
+    `txtgreen summary`               -- print summary of spent time by authors
+    `txtgreen log`                   -- same as git-log but with human-format time notes
+
+`txtbold 'Commits related commands'`:
+    `txtgreen undo`   [<number>]     -- (soft) reset given number of commits (1 by default) and return their time
+    `txtgreen ammend`  <commit_sha>  -- set currently spent time to the given commit
+    `txtgreen delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
+    `txtgreen merge`  [remote]       -- merge timetracker notes from remote branch (origin by default)
+
+`txtbold 'Task subcommands'`: `txtblue 'gtt task [subcommand] [options]'`
+    `txtgreen new` <name> <options>  -- create new task
+    `txtgreen connect` [options]     -- transform bound issue to pull-request if possible
+    `txtgreen show`                  -- show the bound issue 
+    `txtgreen switch` <number>       -- switch between tasks by issue number
+    `txtgreen close`                 -- close current task
+
+    Use `txtblue 'gtt task <subcommand> -h'` for more information about options and behaviour
 "
 }
+
 
 ### HOOKS
 
 function pre_commit_hook() {
 echo '#!/bin/bash
 # check if the timer is not zero
-time=$(git-timetrack current --seconds)
+time=$(git-timetrack status --seconds)
 if (( $time == 0 )); then
     echo "`tput setaf 1`You forgot to set the timer!`tput sgr0`"
     exit 1
@@ -240,13 +277,13 @@ function gtt_start() {
     local current_repo=$(git config --global timetrack.repo)
     local current_dir=$(pwd -P)
     if [ "$current_repo" == "$current_dir" ] && [ $(running) ]; then
-        gtt_current
+        gtt_status
     else
         [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtt_stop
         config_set start $(date +%s)
         spent_get > /dev/null
         git config --global timetrack.repo $current_dir
-        echo "`gtt_current --no-status` `txtgreen [started]`"
+        echo "`gtt_status --no-status` `txtgreen [started]`"
     fi
 }
 function gtt_reset() {
@@ -258,14 +295,14 @@ function gtt_stop() {
     local current_repo=$(git config --global timetrack.repo)
     if [ ! "$current_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
-        gtt_current
+        gtt_status
     else
         local current_dir=$(pwd -P)
         [ "$current_repo" != "$current_dir" ] && cd $current_repo
         spent_set $(current_time)
         git config --unset timetrack.start
 
-        printf "`gtt_current --no-status` `txtred [paused]`"
+        printf "`gtt_status --no-status` `txtred [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `txtblue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
@@ -273,7 +310,7 @@ function gtt_stop() {
     fi
 }
 
-function gtt_current() {
+function gtt_status() {
     local spent=$(current_time)
     [ "$1" == "--seconds" ] && echo $spent && exit 0
     local current_dir=$(pwd -P)
@@ -351,8 +388,64 @@ function gtt_add() {
     local t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
+function gtt_steal() {
+    case $1 in
+        -i)
+            local issue=$2
+            [ ! "$issue" ] && gtt_list && err "Choose task number, from which you want to steal time"
+            local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+            [ ! "$branch" ] && gtt_list && err "No task #$issue. Create a new one or choose from existing."
+        ;;
+        -b)
+            local branch=$2
+        ;;
+    esac
+    local branch=${branch:-master}
+    local timer=$(spent_get $branch)
+    spent_set $(( $(spent_get) + $timer ))
+    spent_set 0 $branch
+    txtgreen "Stole time from branch "; txtblue "[$branch]"; echo ": `human_time $timer`"
+}
+
+function gtt_undo() {
+    local n=${1:-1}
+    local timers=$(git log -$n --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    git reset --soft HEAD~$n
+
+    local total=0
+    for t in $timers; do
+        total=$(( $total + $t ))
+    done
+    spent_set $(( $(spent_get) + $total ))
+    if (( $n == 1 )); then
+        txtgreen "Undone last commit and returned it's time: "; echo "`human_time $total`"
+    else
+        txtgreen "Undone $n commits and returned their time: "; echo "`human_time $total`"
+    fi
+}
 
 function gtt_task_new() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task new <branch_name> <-i number | -m title> [issue_options]'`
+
+Creates a new task combining given branch and issue:
+
+ `txtbold '*'` `txtgreen '<branch_name>'` can be an existing branch (use '`txtgreen -`' for current) or a name for new branch
+
+ `txtbold '*'` If you want to bind task to an existing issue, use 
+     `txtgreen '-i'` <number>
+   else create a new one:
+     `txtgreen '-m'` <issue_title>
+   it will be assigned to you and it will get labels retrieved from the branch name prefix,
+   i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
+ 
+   `txtgreen '[issue_options]'` are any options accepted by 'ghi open' (see 'ghi help open')
+";  exit ;;
+esac
+
     local name=$1
     [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
     [ "$name" == "-" ] && name=$(current_branch)
@@ -408,11 +501,27 @@ function gtt_task_new() {
     esac
 }
 function gtt_task_connect() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
+
+Connects task branch with and issue and transforms it to pull-request 
+(to merge it into base branch) if possible (i.e. if there are any pushed commits).
+
+By default
+ `txtbold '*'` `txtgreen '<task_branch>'` is current branch
+ `txtbold '*'` `txtgreen '<base_branch>'` is master branch
+ `txtbold '*'` `txtgreen '<issue_number>'` is issue assigned to the <task_branch> (if it exists)
+";  exit ;;
+esac
+
     while (( $# )); do
         case $1 in
-            -h)
-                [ ! $2 ] && err "Need an argument for -h: branch that you want to connect"
-                local head=$2
+            -t)
+                [ ! $2 ] && err "Need an argument for -t: branch that you want to connect"
+                local task=$2
                 ;;
             -b)
                 [ ! $2 ] && err "Need an argument for -b: base branch name"
@@ -428,23 +537,41 @@ function gtt_task_connect() {
         esac
         shift 2
     done
-    local head=${head:-$(current_branch)}
+    local task=${task:-$(current_branch)}
     local base=${base:-master}
-    local issue=${issue:-$(git config branch.$head.issue)}
+    local issue=${issue:-$(git config branch.$task.issue)}
     if [ -z "$issue" ]; then
         txtred "Please provide issue number with -i option:\n"
         ghi list && exit 1
     fi
 
-    git config branch.$head.issue $issue
-    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$head]`"
-    ghi edit --head $head --base $base $issue
+    git config branch.$task.issue $issue
+    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$task]`"
+    ghi edit --head $task --base $base $issue
     if (( $? != 0 )); then 
         txtred "Couldn't transform issue to pull-request. "
         echo "Push commits and try to connect again"
     fi
 }
 function gtt_task_close() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task close [-b <base_branch>] [-i <issue_number>]'`
+
+Closes current task in several steps:
+
+`txtbold 1.` Try to merge task branch into base branch
+`txtbold 2.` Push task branch
+`txtbold 3.` Transform bound issue into a pull-request
+`txtbold 4.` Push base branch and timetracker notes (it will close the issue)
+`txtbold 5.` Delete task branch and move the time remained on it to the base branch
+
+By default `txtgreen '<base_branch>'` is master and `txtgreen '<issue_number>'` is the issue assigned to the current task
+";  exit ;;
+esac
+
     local task=$(current_branch)
     [ "$task" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
 
@@ -475,29 +602,50 @@ function gtt_task_close() {
         echo " Choose one of existing and use '-i <number>' option or create a new one"
         ghi list && exit 1
     fi
-
-    confirm "`txtbold 1.` Try to merge `txtblue [$task]` into `txtgreen [$base]`"
+    local step1="`txtbold 1.` Try to merge `txtblue [$task]` into `txtgreen [$base]`"
+    local step2="`txtbold 2.` Push `txtblue [$task]` branch"
+    local step3="`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
+    local step4="`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
+    local step5="`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
+    overview "$step1" "$step2" "$step3" "$step4" "$step5" 
+    echo
+    echo "$step1"
     git checkout $base
     git merge --no-ff $task
-    (( $? != 0 )) && err "Couldn't merge branch [$task] into [$base]"
+    failed $? "Couldn't merge branch [$task] into [$base]"
     echo
-    confirm "`txtbold 2.` Push `txtblue [$task]` branch"
+    echo "$step2"
     git push -u origin $task
+    failed $? "Couldn't push [$task] branch to remote origin"
     echo
-    confirm "`txtbold 3.` Transform issue `txtyellow \#${issue}` into a pull-request"
-    gtt_task_connect -h $task -b $base -i $issue
+    echo "$step3"
+    gtt_task_connect -t $task -b $base -i $issue
+    failed $?
     echo
-    confirm "`txtbold 4.` Push `txtgreen [$base]` branch and timetracker notes (it will close issue `txtyellow \#${issue}`)"
-    git push origin $base && git push
+    echo "$step4"
+    git push origin $base
+    failed $? "Couldn't push [$base] branch to remote origin"
+    git push
+    failed $? "Couldn't push timetracker notes"
     echo
-    confirm "`txtbold 5.` Delete `txtblue [$task]` task and move the time remained on it to `txtblue [$base]`"
+    echo "$step5"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
     git branch -d $task
+    failed $? "Couldn't delete branch [$task]"
     echo
-
     ghi show $issue
 }
 function gtt_task_switch() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task switch <issue_number>'`
+
+Switches to the task with given issue number (just does 'git checkout' to the corresponding branch)
+";  exit ;;
+esac
+
     local issue=$1
     [ ! "$issue" ] && gtt_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
     [ "$issue" == "-" ] && git checkout master
@@ -507,6 +655,16 @@ function gtt_task_switch() {
     git checkout $task
 }
 function gtt_task_show() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task show [-w]'`
+
+Shows issue which is bound to the current task (`txtgreen '-w'` option works as in ghi: open issue in web-browser)
+";  exit ;;
+esac
+
     local issue=$(git config branch.$(current_branch).issue)
     [ "$1" == "-w" ] && web="-w"
     ghi show $issue $web
@@ -576,7 +734,7 @@ case $subcommand in
         exit 0
     ;;
     usage|-h|--help|help)
-        show_help
+        show_help "$@"
         exit 0
     ;;
     prompt-status)
@@ -594,22 +752,28 @@ case $subcommand in
     start)
         gtt_start
     ;;
-    current)
-        gtt_current "$@"
+    status)
+        gtt_status "$@"
     ;;
     reset)
         gtt_reset
     ;;
     set)
         gtt_set "$@"
-        gtt_current
+        gtt_status
     ;;
     add)
         gtt_add "$@"
-        gtt_current
+        gtt_status
     ;;
     list)
         gtt_list
+    ;;
+    undo)
+        gtt_undo
+    ;;
+    steal)
+        gtt_steal "$@"
     ;;
     ammend)
         sha=${1:?"need commit sha"}
@@ -638,7 +802,7 @@ case $subcommand in
         last=$(git log HEAD~${1:-0} -1 --format=%ct)
         t=$(( current_date - last ))
         gtt_set $(( $t / 60 ))
-        gtt_current
+        gtt_status
     ;;
     human-time)
         human_time ${1:?"need time in seconds"}
