@@ -130,7 +130,7 @@ Git time tracker and task manager (c) Alexey Alekhin
 function pre_commit_hook() {
 echo '#!/bin/bash
 # check if the timer is not zero
-time=$(git-timetrack status --seconds)
+time=$(gtm status --seconds)
 if (( $time == 0 )); then
     echo "`tput setaf 1`You forgot to set the timer!`tput sgr0`"
     exit 1
@@ -143,15 +143,15 @@ function post_commit_hook() {
 echo '#!/bin/bash
 
 running=$(git config timetrack.start)
-git-timetrack stop > /dev/null
+gtm stop > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
 git config --unset branch.$current_branch.spent
 
 if (( ${spent:-0} > 0 )); then
     git notes --ref timetracker add -m "Time-spent: $spent"
-    [ $running ] && git-timetrack start > /dev/null
-    echo "Time-spent: $(git-timetrack human-time $spent)"
+    [ $running ] && gtm start > /dev/null
+    echo "Time-spent: $(gtm human-time $spent)"
 fi'
 }
 
@@ -160,7 +160,7 @@ echo '#!/bin/bash
 
 gitdir=$(git rev-parse --git-dir)
 for remote in $gitdir/refs/notes/remotes/*; do
-    git-timetrack merge "$(basename $remote)"
+    gtm merge "$(basename $remote)"
 done'
 }
 
@@ -182,9 +182,9 @@ then
     # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
     git config timetrack.branch $current_branch
-    [ "$start" ] && git-timetrack start &> /dev/null
+    [ "$start" ] && gtm start &> /dev/null
 
-    git-timetrack list
+    gtm list
 fi'
 }
 
