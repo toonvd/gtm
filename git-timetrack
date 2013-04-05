@@ -81,8 +81,8 @@ failed() {
 }
 
 ### USAGE
-
-help_msg="
+function show_help {
+echo "
 Git time tracker and task manager (c) Alexey Alekhin
 
 `txtbold 'Usage'`: `txtblue 'gtt command [options]'`
@@ -116,38 +116,12 @@ Git time tracker and task manager (c) Alexey Alekhin
 `txtbold 'Task subcommands'`: `txtblue 'gtt task [subcommand] [options]'`
     `txtgreen new` <name> <options>  -- create new task
     `txtgreen connect` [options]     -- transform bound issue to pull-request if possible
-    `txtgreen close`                 -- close current task
+    `txtgreen show`                  -- show the bound issue 
     `txtgreen switch` <number>       -- switch between tasks by issue number
-    `txtgreen show`                  -- show issue 
+    `txtgreen close`                 -- close current task
 
-    gtt help <command>  for more information about options and behaviour (for task subcommands)
+    Use `txtblue 'gtt task <subcommand> -h'` for more information about options and behaviour
 "
-help_new="
-`txtbold Usage`: `txtblue 'gtt task new <branch_name> <-i number | -m title> [issue_options]'`
-
-Creates a new task combining given branch and issue:
-
-`txtbold '*'` `txtgreen '<branch_name>'` can be an existing branch (use '`txtgreen -`' for current) or a name for new branch
-
-`txtbold '*'` If you want to bind task to an existing issue, use 
-    `txtgreen '-i'` <number>
-  else create a new one:
-    `txtgreen '-m'` <issue_title>
-  it will be assigned to you and it will get labels retrieved from the branch name prefix,
-  i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
-
-  `txtgreen '[issue_options]'` are any options accepted by 'ghi open' (see 'ghi help open')
-"
-
-function show_help {
-    case $1 in
-        new)
-            echo "$help_new"
-        ;;
-        *)
-            echo "$help_msg"
-        ;;
-    esac
 }
 
 
@@ -451,6 +425,27 @@ function gtt_undo() {
 }
 
 function gtt_task_new() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task new <branch_name> <-i number | -m title> [issue_options]'`
+
+Creates a new task combining given branch and issue:
+
+ `txtbold '*'` `txtgreen '<branch_name>'` can be an existing branch (use '`txtgreen -`' for current) or a name for new branch
+
+ `txtbold '*'` If you want to bind task to an existing issue, use 
+     `txtgreen '-i'` <number>
+   else create a new one:
+     `txtgreen '-m'` <issue_title>
+   it will be assigned to you and it will get labels retrieved from the branch name prefix,
+   i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
+ 
+   `txtgreen '[issue_options]'` are any options accepted by 'ghi open' (see 'ghi help open')
+";  exit ;;
+esac
+
     local name=$1
     [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
     [ "$name" == "-" ] && name=$(current_branch)
@@ -506,11 +501,27 @@ function gtt_task_new() {
     esac
 }
 function gtt_task_connect() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
+
+Connects task branch with and issue and transforms it to pull-request 
+(to merge it into base branch) if possible (i.e. if there are any pushed commits).
+
+By default
+ `txtbold '*'` `txtgreen '<task_branch>'` is current branch
+ `txtbold '*'` `txtgreen '<base_branch>'` is master branch
+ `txtbold '*'` `txtgreen '<issue_number>'` is issue assigned to the <task_branch> (if it exists)
+";  exit ;;
+esac
+
     while (( $# )); do
         case $1 in
-            -h)
-                [ ! $2 ] && err "Need an argument for -h: branch that you want to connect"
-                local head=$2
+            -t)
+                [ ! $2 ] && err "Need an argument for -t: branch that you want to connect"
+                local task=$2
                 ;;
             -b)
                 [ ! $2 ] && err "Need an argument for -b: base branch name"
@@ -526,23 +537,41 @@ function gtt_task_connect() {
         esac
         shift 2
     done
-    local head=${head:-$(current_branch)}
+    local task=${task:-$(current_branch)}
     local base=${base:-master}
-    local issue=${issue:-$(git config branch.$head.issue)}
+    local issue=${issue:-$(git config branch.$task.issue)}
     if [ -z "$issue" ]; then
         txtred "Please provide issue number with -i option:\n"
         ghi list && exit 1
     fi
 
-    git config branch.$head.issue $issue
-    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$head]`"
-    ghi edit --head $head --base $base $issue
+    git config branch.$task.issue $issue
+    echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"` `txtblue [$task]`"
+    ghi edit --head $task --base $base $issue
     if (( $? != 0 )); then 
         txtred "Couldn't transform issue to pull-request. "
         echo "Push commits and try to connect again"
     fi
 }
 function gtt_task_close() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task close [-b <base_branch>] [-i <issue_number>]'`
+
+Closes current task in several steps:
+
+`txtbold 1.` Try to merge task branch into base branch
+`txtbold 2.` Push task branch
+`txtbold 3.` Transform bound issue into a pull-request
+`txtbold 4.` Push base branch and timetracker notes (it will close the issue)
+`txtbold 5.` Delete task branch and move the time remained on it to the base branch
+
+By default `txtgreen '<base_branch>'` is master and `txtgreen '<issue_number>'` is the issue assigned to the current task
+";  exit ;;
+esac
+
     local task=$(current_branch)
     [ "$task" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
 
@@ -590,7 +619,7 @@ function gtt_task_close() {
     failed $? "Couldn't push [$task] branch to remote origin"
     echo
     echo "$step3"
-    gtt_task_connect -h $task -b $base -i $issue
+    gtt_task_connect -t $task -b $base -i $issue
     failed $?
     echo
     echo "$step4"
@@ -607,6 +636,16 @@ function gtt_task_close() {
     ghi show $issue
 }
 function gtt_task_switch() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task switch <issue_number>'`
+
+Switches to the task with given issue number (just does 'git checkout' to the corresponding branch)
+";  exit ;;
+esac
+
     local issue=$1
     [ ! "$issue" ] && gtt_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
     [ "$issue" == "-" ] && git checkout master
@@ -616,6 +655,16 @@ function gtt_task_switch() {
     git checkout $task
 }
 function gtt_task_show() {
+
+case $1 in
+    -h|--help)
+    echo "
+`txtbold Usage`: `txtblue 'gtt task show [-w]'`
+
+Shows issue which is bound to the current task (`txtgreen '-w'` option works as in ghi: open issue in web-browser)
+";  exit ;;
+esac
+
     local issue=$(git config branch.$(current_branch).issue)
     [ "$1" == "-w" ] && web="-w"
     ghi show $issue $web
