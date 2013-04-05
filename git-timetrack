@@ -175,13 +175,13 @@ fi'
 ### COMMON FUNCTIONS
 
 function human_time() {
-    s=${1:-0}
-    m=0
+    local s=${1:-0}
+    local m=0
     while (( $s >= 60 )); do
         m=$(( $m + $s / 60 ))
         s=$(( $s % 60 ))
     done
-    h=0
+    local h=0
     while (( $m >= 60 )); do
         h=$(( $h + $m / 60 ))
         m=$(( $m % 60 ))
@@ -209,13 +209,13 @@ function config_set() {
 }
 
 function spent_get() { 
-    branch=${1:-$(current_branch)}
-    spent=$(git config branch.$branch.spent)
+    local branch=${1:-$(current_branch)}
+    local spent=$(git config branch.$branch.spent)
     [ ! $spent ] && git config branch.$branch.spent 0
     echo ${spent:-0}
 }
 function spent_set() {
-    branch=${2:-$(current_branch)}
+    local branch=${2:-$(current_branch)}
     git config branch.$branch.spent $1
 }
 
@@ -224,17 +224,17 @@ function current_branch() {
 }
 
 function current_time() {
-    start_date=$(config_get start)
-    current_date=$(date +%s)
-    spent=$(spent_get)
+    local start_date=$(config_get start)
+    local current_date=$(date +%s)
+    local spent=$(spent_get)
     [ $start_date ] && spent=$(( $spent + $current_date - $start_date ))
     echo $spent
 }
 
 function user_time_dedication() {
-    alltimes=$(git log --author="$1" --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    local alltimes=$(git log --author="$1" --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
 
-    total=0
+    local total=0
     for t in $alltimes; do
         total=$(( $total + $t ))
     done
@@ -258,8 +258,8 @@ function gitdir() {
 function gtt_start() {
     [ ! $(gitdir) ] && err "It's not a git root directory!"
 
-    current_repo=$(git config --global timetrack.repo)
-    current_dir=$(pwd -P)
+    local current_repo=$(git config --global timetrack.repo)
+    local current_dir=$(pwd -P)
     if [ "$current_repo" == "$current_dir" ] && [ $(running) ]; then
         gtt_current
     else
@@ -276,12 +276,12 @@ function gtt_reset() {
 }
 
 function gtt_stop() {
-    current_repo=$(git config --global timetrack.repo)
+    local current_repo=$(git config --global timetrack.repo)
     if [ ! "$current_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
         gtt_current
     else
-        current_dir=$(pwd -P)
+        local current_dir=$(pwd -P)
         [ "$current_repo" != "$current_dir" ] && cd $current_repo
         spent_set $(current_time)
         git config --unset timetrack.start
@@ -295,11 +295,11 @@ function gtt_stop() {
 }
 
 function gtt_current() {
-    spent=$(current_time)
+    local spent=$(current_time)
     [ "$1" == "--seconds" ] && echo $spent && exit 0
-    current_dir=$(pwd -P)
+    local current_dir=$(pwd -P)
     if [ "$1" == "--global" ]; then
-        current_repo=$(git config --global timetrack.repo)
+        local current_repo=$(git config --global timetrack.repo)
         if [ "$current_repo" != "$current_dir" ]; then
             cd ${current_repo:-.}
             echo -n "`pwd`: "; txtblue "[`current_branch`] "
@@ -310,22 +310,22 @@ function gtt_current() {
     [ "$current_repo" ] && cd $current_dir
 }
 function gtt_list() {
-    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
-    current_branch=$(current_branch)
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    local current_branch=$(current_branch)
     [ $(config_get start) ] && gtt_stop > /dev/null && gtt_start > /dev/null
-    lwidth=10
-    rwidth=0
+    local lwidth=10
+    local rwidth=0
     for branch in $branches; do
         (( ${#branch} > lwidth )) && lwidth=${#branch}
-        spent=$(human_time $(git config branch.$branch.spent))
+        local spent=$(human_time $(git config branch.$branch.spent))
         (( ${#spent} > rwidth )) && rwidth=${#spent}
     done
     lwidth=$(( lwidth + 2 )) # for [...]
 
     txt_ "$(txtbold "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent")"
     for branch in $branches; do
-        spent=$(human_time $(git config branch.$branch.spent))
-        issue=$(git config branch.$branch.issue)
+        local spent=$(human_time $(git config branch.$branch.spent))
+        local issue=$(git config branch.$branch.issue)
         if [ "$branch" == "$current_branch" ]
         then 
             [ $(config_get start) ] && txtgreen "* " || txtred "* "
@@ -342,21 +342,21 @@ function gtt_list() {
     done
 }
 function gtt_summary() {
-    alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
-    allusers=$(git log --format="%ae" | sort | uniq)
-    commits=$((`git log --oneline | wc -l`))
-    timed_commits=$((`git log --format="%N"  | grep "Time-spent:" | wc -l`))
-    percent=$(( $timed_commits * 100 / $commits ))
+    local alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    local allusers=$(git log --format="%ae" | sort | uniq)
+    local commits=$((`git log --oneline | wc -l`))
+    local timed_commits=$((`git log --format="%N"  | grep "Time-spent:" | wc -l`))
+    local percent=$(( $timed_commits * 100 / $commits ))
     echo "$timed_commits of $commits commits have time information ($percent%)"
 
     echo -n "Total time spent by authors in branch "
     txtblue "[$(current_branch)]\n"
     for author in $allusers; do
-        dedication=$(user_time_dedication $author)
+        local dedication=$(user_time_dedication $author)
         [ $dedication != 0 ] && printf " %-39s %s\n" "$author" "$(human_time $dedication)"
     done
 
-    total=0
+    local total=0
     for t in $alltimes; do
         total=$(( $total + $t ))
     done
@@ -364,43 +364,43 @@ function gtt_summary() {
 }
 
 function gtt_set() {
-    t=${1:?"time amount needed"}
+    local t=${1:?"time amount needed"}
     gtt_reset
     spent_set $(( $t * 60 ))
 }
 function gtt_add() {
-    t=${1:?"time amount needed"}
+    local t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
 
 function gtt_task_new() {
-    name=$1
+    local name=$1
     [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
     [ "$name" == "-" ] && name=$(current_branch)
 
-    issue_flag=$2
+    local issue_flag=$2
     [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong option: $issue_flag"
-    issue=$3
+    local issue=$3
 
-    prefix=${name%/*}
-    labels=""
+    local prefix=${name%/*}
+    local labels=""
     # if prefix was not empty
     [ "$prefix" != "$name" ] && labels=" -L "${prefix//\// -L }
 
     # info and confirmation
-    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
-    exists=$(echo $branches | grep "$name")
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    local exists=$(echo $branches | grep "$name")
     if [ "$exists" ]; then
-        step1="`txtbold 1.` Use an existing branch `txtblue [$name]`"
+        local step1="`txtbold 1.` Use an existing branch `txtblue [$name]`"
     else
-        step1="`txtbold 1.` Create a new branch `txtblue [$name]`"
+        local step1="`txtbold 1.` Create a new branch `txtblue [$name]`"
     fi
     case $issue_flag in
         -i)
-            step2="`txtbold 2.` Bind the task to an existing issue `txtyellow \#$issue`:"
+            local step2="`txtbold 2.` Bind the task to an existing issue `txtyellow \#$issue`:"
         ;;
         -m)
-            step2="`txtbold 2.` Bind the task to a new issue "$(txtyellow "\"$issue\"")
+            local step2="`txtbold 2.` Bind the task to a new issue "$(txtyellow "\"$issue\"")
             [ "$labels" ] && step2=$step2" with tags: ${prefix//\//, }"
         ;;
     esac
@@ -418,8 +418,8 @@ function gtt_task_new() {
             echo "`txtgreen Issue` `txtyellow \#$issue` `txtgreen "is assigned to the task"`"
         ;;
         -m)
-            ghi_out=$(ghi open  --claim  $labels  "${@:2}")
-            number=$(echo $ghi_out | grep '#' | sed 's/^#\([0-9]*\):.*$/\1/')
+            local ghi_out=$(ghi open  --claim  $labels  "${@:2}")
+            local number=$(echo $ghi_out | grep '#' | sed 's/^#\([0-9]*\):.*$/\1/')
             if [ "$number" ]; then 
                 git config branch.$name.issue $number
                 ghi show $number
@@ -433,15 +433,15 @@ function gtt_task_connect() {
         case $1 in
             -h)
                 [ ! $2 ] && err "Need an argument for -h: branch that you want to connect"
-                head=$2
+                local head=$2
                 ;;
             -b)
                 [ ! $2 ] && err "Need an argument for -b: base branch name"
-                base=$2
+                local base=$2
                 ;;
             -i)
                 [ ! $2 ] && err "Need an argument for -i: issue number"
-                issue=$2
+                local issue=$2
                 ;;
             *)
                 err "Wrong options"
@@ -449,9 +449,9 @@ function gtt_task_connect() {
         esac
         shift 2
     done
-    head=${head:-$(current_branch)}
-    base=${base:-master}
-    issue=${issue:-$(git config branch.$head.issue)}
+    local head=${head:-$(current_branch)}
+    local base=${base:-master}
+    local issue=${issue:-$(git config branch.$head.issue)}
     if [ -z "$issue" ]; then
         txtred "Please provide issue number with -i option:\n"
         ghi list && exit 1
@@ -466,21 +466,21 @@ function gtt_task_connect() {
     fi
 }
 function gtt_task_close() {
-    task=$(current_branch)
+    local task=$(current_branch)
     [ "$task" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
 
-    dirty=$(git status -s)
-    # [ "$dirty" ] && err "You have uncommited changes. Please, commit them first"
+    local dirty=$(git status -s)
+    [ "$dirty" ] && err "You have uncommited changes. Please, commit them first"
 
     while (( $# )); do
         case $1 in
             -b)
                 [ ! $2 ] && err "Need an argument for -b: base branch name"
-                base=$2
+                local base=$2
                 ;;
             -i)
                 [ ! $2 ] && err "Need an argument for -i: issue number"
-                issue=$2
+                local issue=$2
                 git config branch.$task.issue $issue
                 ;;
             *)
@@ -489,8 +489,8 @@ function gtt_task_close() {
         esac
         shift 2
     done
-    base=${base:-master}
-    issue=${issue:-$(git config branch.$task.issue)}
+    local base=${base:-master}
+    local issue=${issue:-$(git config branch.$task.issue)}
     if [ ! "$issue" ]; then 
         txtred "Task is not connected to any issue."
         echo " Choose one of existing and use '-i <number>' option or create a new one"
@@ -530,15 +530,16 @@ function gtt_task_close() {
     ghi show $issue
 }
 function gtt_task_switch() {
-    issue=$1
+    local issue=$1
     [ ! "$issue" ] && gtt_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
     [ "$issue" == "-" ] && git checkout master
 
-    task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+    local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+    [ ! "$task" ] && gtt_list && err "No task #$issue. Create a new one or choose from existing."
     git checkout $task
 }
 function gtt_task_show() {
-    issue=$(git config branch.$(current_branch).issue)
+    local issue=$(git config branch.$(current_branch).issue)
     [ "$1" == "-w" ] && web="-w"
     ghi show $issue $web
 }
@@ -546,22 +547,22 @@ function gtt_task_show() {
 function gtt_addhooks() {
     [ ! "$(gitdir)" ] && err "It's not a git root directory!"
 
-    hooksdir="$(gitdir)/hooks"
+    local hooksdir="$(gitdir)/hooks"
     [ ! -d $hooksdir ] && mkdir $hooksdir
 
-    pre_commit="$hooksdir/pre-commit"
+    local pre_commit="$hooksdir/pre-commit"
     pre_commit_hook > $pre_commit
     chmod +x $pre_commit
 
-    post_commit="$hooksdir/post-commit"
+    local post_commit="$hooksdir/post-commit"
     post_commit_hook > $post_commit
     chmod +x $post_commit
 
-    post_merge="$hooksdir/post-merge"
+    local post_merge="$hooksdir/post-merge"
     post_merge_hook > $post_merge
     chmod +x $post_merge
 
-    post_checkout="$hooksdir/post-checkout"
+    local post_checkout="$hooksdir/post-checkout"
     post_checkout_hook > $post_checkout
     chmod +x $post_checkout
 
@@ -569,16 +570,16 @@ function gtt_addhooks() {
     echo "pre-commit, post-commit, post-merge, post-checkout"
 }
 function gtt_config() {
-    remote=${1:-origin}
-    branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    local remote=${1:-origin}
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     [ ! "$branches" ] && err "Looks like an empty repository. Make an init commit and try again."
 
-    push="refs/notes/timetracker:refs/notes/timetracker"
-    exists=$(git config --get-all remote.$remote.push | grep "$push")
+    local push="refs/notes/timetracker:refs/notes/timetracker"
+    local exists=$(git config --get-all remote.$remote.push | grep "$push")
     [ ! "$exists" ] && git config --add remote.$remote.push $push
 
-    fetch="+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
-    exists=$(git config --get-all remote.$remote.fetch | grep "$fetch")
+    local fetch="+refs/notes/timetracker:refs/notes/remotes/$remote/timetracker"
+    local exists=$(git config --get-all remote.$remote.fetch | grep "$fetch")
     [ ! "$exists" ] && git config --add remote.$remote.fetch $fetch
 
     git config notes.rewriteRef "refs/notes/timetracker"
