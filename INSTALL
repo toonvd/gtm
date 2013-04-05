@@ -1,8 +1,0 @@
-Run:
-
-$ sudo make install
-
-Default prefix is /usr/local, if you want to change prefix you can set
-PREFIX var.
-
-$ sudo PREFIX=/usr/ make install
