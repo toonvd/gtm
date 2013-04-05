@@ -373,6 +373,23 @@ function gtt_add() {
     spent_set $(( $t * 60 + $(spent_get) ))
 }
 
+function gtt_undo() {
+    local n=${1:-1}
+    local timers=$(git log -$n --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    git reset --soft HEAD~$n
+
+    local total=0
+    for t in $timers; do
+        total=$(( $total + $t ))
+    done
+    spent_set $(( $(spent_get) + $total ))
+    if (( $n == 1 )); then
+        txtgreen "Undone last commit and returned it's time: "; echo "`human_time $total`"
+    else
+        txtgreen "Undone $n commits and returned their time: "; echo "`human_time $total`"
+    fi
+}
+
 function gtt_task_new() {
     local name=$1
     [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
@@ -642,6 +659,9 @@ case $subcommand in
     ;;
     list)
         gtt_list
+    ;;
+    undo)
+        gtt_undo
     ;;
     ammend)
         sha=${1:?"need commit sha"}
