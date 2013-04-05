@@ -372,6 +372,24 @@ function gtt_add() {
     local t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
+function gtt_steal() {
+    case $1 in
+        -i)
+            local issue=$2
+            [ ! "$issue" ] && gtt_list && err "Choose task number, from which you want to steal time"
+            local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+            [ ! "$branch" ] && gtt_list && err "No task #$issue. Create a new one or choose from existing."
+        ;;
+        -b)
+            local branch=$2
+        ;;
+    esac
+    local branch=${branch:-master}
+    local timer=$(spent_get $branch)
+    spent_set $(( $(spent_get) + $timer ))
+    spent_set 0 $branch
+    txtgreen "Stole time from branch "; txtblue "[$branch]"; echo ": `human_time $timer`"
+}
 
 function gtt_undo() {
     local n=${1:-1}
@@ -662,6 +680,9 @@ case $subcommand in
     ;;
     undo)
         gtt_undo
+    ;;
+    steal)
+        gtt_steal "$@"
     ;;
     ammend)
         sha=${1:?"need commit sha"}
