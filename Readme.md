@@ -67,7 +67,7 @@ If you already have a branch and want to bind and issue to it just do the same (
 
 Now you can use `gtm show` to view the issue bound to the current task branch (with `-w` flag it will open it in your web browser). Also using `gtm list` you can see list of you branches with corresponding issue numbers. And when you want to switch between them, it may be convenient to use those numbers instead of typing branch names: `gtm switch <number>` will do that for you.
 
-When you finished work on the task you can use `gtm close`. It will show you which steps it's going to do and ask for confirmation. See `gtm close -h` for more information.
+When you finished work on the task you can use `gtm close`. It will show you which steps it's going to do and ask for confirmation. See `gtm help close` for more information.
 
 ## Configuration
 
