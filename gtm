@@ -8,8 +8,6 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-# set -u
-
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
 # Text color variables
@@ -81,8 +79,8 @@ failed() {
 }
 
 ### USAGE
-function show_help {
-echo "
+
+general_help="
 Git time tracker and task manager (c) Alexey Alekhin
 
 `txtbold 'Usage'`: `txtblue 'gtm command [options]'`
@@ -120,8 +118,18 @@ Git time tracker and task manager (c) Alexey Alekhin
     `txtgreen switch` <number>       -- switch between tasks by issue number
     `txtgreen close`                 -- close current task
 
-    Use `txtblue 'gtm <command> -h'` for more information about options and behaviour (for task commands)
+    Use `txtblue 'gtm help <command>'` for more information about options and behaviour (for task commands)
 "
+function show_help {
+    (( $# == 0 )) && echo "$general_help" && exit 0
+    case $1 in
+        task|connect|info|switch|close)
+            gtm $1 --help
+        ;;
+        *)
+            err "No help entry for '$1'"
+        ;;
+    esac
 }
 
 
@@ -717,7 +725,6 @@ function gtm_config() {
 
     for branch in $branches; do
         spent_get $branch &> /dev/null
-        # spent_set $(spent_get $branch) $branch
     done
 
     txtgreen "Git timetrack is configured. "
@@ -750,7 +757,9 @@ case $subcommand in
     ;;
 esac
 
-[ ! $(gitdir) ] && err "It's not a git root directory!"
+if [ ! $(gitdir) ] && [ "$1" != "--help" ] && [ "$1" != "-h" ]; then
+    err "It's not a git root directory!"
+fi
 case $subcommand in
     start)
         gtm_start
