@@ -53,7 +53,7 @@ The idea is very simple:
 - Every task consists of
   + _GitHub issue_ containing task description and discussion with team if needed
   + _Git branch_ containing task solution, i.e. all commits related to the task
-  + _Time tracker_ helping you controll how much time you spend on solving the task
+  + _Time tracker_ helping you control how much time you spend on solving the task
 
 Separate branch for each task — almost like in Git Flow, but less strict, the main point is in binding these special branches and GitHub issues. This way you can think of your issues as a to-do list (+ just any general discussions) and `gtm` will help you work on each of them.
 
@@ -106,3 +106,5 @@ end
 ## More information
 
 For other commands and information use `gtm help`. If something is unclear and information is missing, please open an issue and I will extends documentation.
+
+Originally, it was a fork of [gtt (git time tracker) tool](http://gitorious.org/gtt/gtt) by Daniel Garcia Moreno and Eduardo Robles Elvira, but then I think, I've rewritten it almost from scratch.
