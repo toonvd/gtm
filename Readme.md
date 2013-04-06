@@ -42,6 +42,10 @@ $ gtm list
 
 That's basically all about time tracking with `gtm`. There are some other convenient commands — you can find them with `gtm help`.
 
+#### Different git repositories
+
+When you work on several projects simultaneously, you don't need to stop timer one timer and start another to switch between them. Just go to the repository where you want to work and type `gtm start` — it will automatically pause another timer and start new. Also if you have a brake, you don't need to search, where is that running timer to stop it — `gtm stop` works globally, from any place, even not a git repository!
+
 ### Task management
 
 The idea is very simple:
