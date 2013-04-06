@@ -85,11 +85,11 @@ function show_help {
 echo "
 Git time tracker and task manager (c) Alexey Alekhin
 
-`txtbold 'Usage'`: `txtblue 'gtt command [options]'`
+`txtbold 'Usage'`: `txtblue 'gtm command [options]'`
 
 `txtbold 'General commands'`:
     `txtgreen 'usage|-h|--help|help'`  -- show this mesage
-    `txtgreen init`                  -- set gtt configuration (hooks and git-config); run this in every new repository
+    `txtgreen init`                  -- set gtm configuration (hooks and git-config); run this in every new repository
 
 `txtbold 'Timer commands'`:
     `txtgreen start`                 -- start timer
@@ -113,14 +113,14 @@ Git time tracker and task manager (c) Alexey Alekhin
     `txtgreen delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
     `txtgreen merge`  [remote]       -- merge timetracker notes from remote branch (origin by default)
 
-`txtbold 'Task subcommands'`: `txtblue 'gtt task [subcommand] [options]'`
-    `txtgreen new` <name> <options>  -- create new task
+`txtbold 'Task commands'`:
+    `txtgreen task` <name> <options> -- create new task
     `txtgreen connect` [options]     -- transform bound issue to pull-request if possible
-    `txtgreen show`                  -- show the bound issue 
+    `txtgreen info`                  -- show info about task branch, timer and the bound issue 
     `txtgreen switch` <number>       -- switch between tasks by issue number
     `txtgreen close`                 -- close current task
 
-    Use `txtblue 'gtt task <subcommand> -h'` for more information about options and behaviour
+    Use `txtblue 'gtm <command> -h'` for more information about options and behaviour (for task commands)
 "
 }
 
@@ -271,38 +271,38 @@ function gitdir() {
 }
 ### SUBCOMMANDS
 
-function gtt_start() {
+function gtm_start() {
     [ ! $(gitdir) ] && err "It's not a git root directory!"
 
     local current_repo=$(git config --global timetrack.repo)
     local current_dir=$(pwd -P)
     if [ "$current_repo" == "$current_dir" ] && [ $(running) ]; then
-        gtt_status
+        gtm_status
     else
-        [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtt_stop
+        [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtm_stop
         config_set start $(date +%s)
         spent_get > /dev/null
         git config --global timetrack.repo $current_dir
-        echo "`gtt_status --no-status` `txtgreen [started]`"
+        echo "`gtm_status --no-status` `txtgreen [started]`"
     fi
 }
-function gtt_reset() {
+function gtm_reset() {
     git config --unset timetrack.start
     git config --unset branch.$(current_branch).spent
 }
 
-function gtt_stop() {
+function gtm_stop() {
     local current_repo=$(git config --global timetrack.repo)
     if [ ! "$current_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
-        gtt_status
+        gtm_status
     else
         local current_dir=$(pwd -P)
         [ "$current_repo" != "$current_dir" ] && cd $current_repo
         spent_set $(current_time)
         git config --unset timetrack.start
 
-        printf "`gtt_status --no-status` `txtred [paused]`"
+        printf "`gtm_status --no-status` `txtred [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `txtblue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
@@ -310,7 +310,7 @@ function gtt_stop() {
     fi
 }
 
-function gtt_status() {
+function gtm_status() {
     local spent=$(current_time)
     [ "$1" == "--seconds" ] && echo $spent && exit 0
     local current_dir=$(pwd -P)
@@ -325,10 +325,10 @@ function gtt_status() {
     [ "$1" != "--no-status" ] && echo "`on_status`"
     [ "$current_repo" ] && cd $current_dir
 }
-function gtt_list() {
+function gtm_list() {
     local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     local current_branch=$(current_branch)
-    [ $(config_get start) ] && gtt_stop > /dev/null && gtt_start > /dev/null
+    [ $(config_get start) ] && gtm_stop > /dev/null && gtm_start > /dev/null
     local lwidth=10
     local rwidth=0
     for branch in $branches; do
@@ -357,7 +357,7 @@ function gtt_list() {
         echo
     done
 }
-function gtt_summary() {
+function gtm_summary() {
     local alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
     local allusers=$(git log --format="%ae" | sort | uniq)
     local commits=$((`git log --oneline | wc -l`))
@@ -379,22 +379,22 @@ function gtt_summary() {
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
 }
 
-function gtt_set() {
+function gtm_set() {
     local t=${1:?"time amount needed"}
-    gtt_reset
+    gtm_reset
     spent_set $(( $t * 60 ))
 }
-function gtt_add() {
+function gtm_add() {
     local t=${1:?"time amount needed"}
     spent_set $(( $t * 60 + $(spent_get) ))
 }
-function gtt_steal() {
+function gtm_steal() {
     case $1 in
         -i)
             local issue=$2
-            [ ! "$issue" ] && gtt_list && err "Choose task number, from which you want to steal time"
+            [ ! "$issue" ] && gtm_list && err "Choose task number, from which you want to steal time"
             local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
-            [ ! "$branch" ] && gtt_list && err "No task #$issue. Create a new one or choose from existing."
+            [ ! "$branch" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing."
         ;;
         -b)
             local branch=$2
@@ -407,7 +407,7 @@ function gtt_steal() {
     txtgreen "Stole time from branch "; txtblue "[$branch]"; echo ": `human_time $timer`"
 }
 
-function gtt_undo() {
+function gtm_undo() {
     local n=${1:-1}
     local timers=$(git log -$n --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
     git reset --soft HEAD~$n
@@ -424,14 +424,14 @@ function gtt_undo() {
     fi
 }
 
-function gtt_task_new() {
+function gtm_task_new() {
 
 case $1 in
     -h|--help)
     echo "
-`txtbold Usage`: `txtblue 'gtt task new <branch_name> <-i number | -m title> [issue_options]'`
+`txtbold Usage`: `txtblue 'gtm task <branch_name> <-i number | -m title> [issue_options]'`
 
-Creates a new task combining given branch and issue:
+Creates a task combining given branch and issue:
 
  `txtbold '*'` `txtgreen '<branch_name>'` can be an existing branch (use '`txtgreen -`' for current) or a name for new branch
 
@@ -500,12 +500,12 @@ esac
         ;;
     esac
 }
-function gtt_task_connect() {
+function gtm_task_connect() {
 
 case $1 in
     -h|--help)
     echo "
-`txtbold Usage`: `txtblue 'gtt task connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
+`txtbold Usage`: `txtblue 'gtm connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
 
 Connects task branch with and issue and transforms it to pull-request 
 (to merge it into base branch) if possible (i.e. if there are any pushed commits).
@@ -553,12 +553,12 @@ esac
         echo "Push commits and try to connect again"
     fi
 }
-function gtt_task_close() {
+function gtm_task_close() {
 
 case $1 in
     -h|--help)
     echo "
-`txtbold Usage`: `txtblue 'gtt task close [-b <base_branch>] [-i <issue_number>]'`
+`txtbold Usage`: `txtblue 'gtm close [-b <base_branch>] [-i <issue_number>]'`
 
 Closes current task in several steps:
 
@@ -619,7 +619,7 @@ esac
     failed $? "Couldn't push [$task] branch to remote origin"
     echo
     echo "$step3"
-    gtt_task_connect -t $task -b $base -i $issue
+    gtm_task_connect -t $task -b $base -i $issue
     failed $?
     echo
     echo "$step4"
@@ -635,42 +635,45 @@ esac
     echo
     ghi show $issue
 }
-function gtt_task_switch() {
+function gtm_task_switch() {
 
 case $1 in
     -h|--help)
     echo "
-`txtbold Usage`: `txtblue 'gtt task switch <issue_number>'`
+`txtbold Usage`: `txtblue 'gtm switch <issue_number>'`
 
 Switches to the task with given issue number (just does 'git checkout' to the corresponding branch)
 ";  exit ;;
 esac
 
     local issue=$1
-    [ ! "$issue" ] && gtt_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
+    [ ! "$issue" ] && gtm_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
     [ "$issue" == "-" ] && git checkout master
 
     local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
-    [ ! "$task" ] && gtt_list && err "No task #$issue. Create a new one or choose from existing."
+    [ ! "$task" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing."
     git checkout $task
 }
-function gtt_task_show() {
+function gtm_task_info() {
 
 case $1 in
     -h|--help)
     echo "
-`txtbold Usage`: `txtblue 'gtt task show [-w]'`
+`txtbold Usage`: `txtblue 'gtm show [-w]'`
 
 Shows issue which is bound to the current task (`txtgreen '-w'` option works as in ghi: open issue in web-browser)
 ";  exit ;;
 esac
 
+    echo "Task `txtblue "[$(current_branch)]"`: `gtm_status`" 
+    echo
     local issue=$(git config branch.$(current_branch).issue)
+    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm task -h'"
     [ "$1" == "-w" ] && web="-w"
     ghi show $issue $web
 }
 
-function gtt_addhooks() {
+function gtm_addhooks() {
     [ ! "$(gitdir)" ] && err "It's not a git root directory!"
 
     local hooksdir="$(gitdir)/hooks"
@@ -695,7 +698,7 @@ function gtt_addhooks() {
     txtgreen "Hooks created: "
     echo "pre-commit, post-commit, post-merge, post-checkout"
 }
-function gtt_config() {
+function gtm_config() {
     local remote=${1:-origin}
     local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     [ ! "$branches" ] && err "Looks like an empty repository. Make an init commit and try again."
@@ -723,14 +726,14 @@ function gtt_config() {
 
 #############
 
-(( $# == 0 )) && gtt_list && exit 0
+(( $# == 0 )) && gtm_list && exit 0
 
 subcommand=$1
 shift
 
 case $subcommand in
     stop|-p)
-        gtt_stop
+        gtm_stop
         exit 0
     ;;
     usage|-h|--help|help)
@@ -750,37 +753,37 @@ esac
 [ ! $(gitdir) ] && err "It's not a git root directory!"
 case $subcommand in
     start)
-        gtt_start
+        gtm_start
     ;;
     status)
-        gtt_status "$@"
+        gtm_status "$@"
     ;;
     reset)
-        gtt_reset
+        gtm_reset
     ;;
     set)
-        gtt_set "$@"
-        gtt_status
+        gtm_set "$@"
+        gtm_status
     ;;
     add)
-        gtt_add "$@"
-        gtt_status
+        gtm_add "$@"
+        gtm_status
     ;;
     list)
-        gtt_list
+        gtm_list
     ;;
     undo)
-        gtt_undo
+        gtm_undo
     ;;
     steal)
-        gtt_steal "$@"
+        gtm_steal "$@"
     ;;
     ammend)
         sha=${1:?"need commit sha"}
-        gtt_stop
+        gtm_stop
         spent=$(spent_get)
         running=$(config_get start)
-        gtt_reset
+        gtm_reset
 
         if [ $spent ]; then 
             git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
@@ -792,54 +795,49 @@ case $subcommand in
         git notes --ref timetracker remove ${1:-HEAD}
     ;;
     summary)
-        gtt_summary "$@"
+        gtm_summary "$@"
     ;;
     log)
-        git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/git timetrack human-time \1/e" | less -R
+        git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/gtm human-time \1/e" | less -R
     ;;
     timesince)
         current_date=$(date +%s)
         last=$(git log HEAD~${1:-0} -1 --format=%ct)
         t=$(( current_date - last ))
-        gtt_set $(( $t / 60 ))
-        gtt_status
+        gtm_set $(( $t / 60 ))
+        gtm_status
     ;;
     human-time)
         human_time ${1:?"need time in seconds"}
     ;;
     addhooks)
-        gtt_addhooks
+        gtm_addhooks
     ;;
     config)
-        gtt_config
+        gtm_config
     ;;
     init)
-        gtt_addhooks
-        gtt_config
+        gtm_addhooks
+        gtm_config
     ;;
     merge)
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
+# Tasks:
     task)
-        subsubcommand=$1
-        shift
-        case $subsubcommand in
-            new)
-                gtt_task_new "$@"
-            ;;
-            connect)
-                gtt_task_connect "$@"
-            ;;
-            close)
-                gtt_task_close "$@"
-            ;;
-            switch)
-                gtt_task_switch "$@"
-            ;;
-            show|*)
-                gtt_task_show "$@"
-            ;;
-        esac
+        gtm_task_new "$@"
+    ;;
+    connect)
+        gtm_task_connect "$@"
+    ;;
+    close)
+        gtm_task_close "$@"
+    ;;
+    switch)
+        gtm_task_switch "$@"
+    ;;
+    info)
+        gtm_task_info "$@"
     ;;
     *)
         txtred "Wrong subcommand: "; echo "$subcommand"
