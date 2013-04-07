@@ -46,7 +46,9 @@ txt_() {
 }
 
 err() {
-    txtred "$1\n" && exit 1
+    txtred "$1\n" 
+    [ "$2" ] && echo "$2"
+    exit 1
 }
 confirm() {
     echo "$1"
@@ -95,8 +97,8 @@ Git time tracker and task manager (c) Alexey Alekhin
     `txtgreen status`                -- show current timer state
            --global       -- show current timer, even if it's not in the current repository
        or  --seconds      -- show current timer value in seconds
-    `txtgreen add` <[-]minutes>      -- add (or substract) time from the timer
-    `txtgreen set`    <minutes>      -- set time spent in minutes
+    `txtgreen add` <time>            -- add (or substract) time from the timer
+    `txtgreen set` <time>            -- set time spent
     `txtgreen timesince`             -- set time spent since last commit
     `txtgreen steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
@@ -415,8 +417,8 @@ Sets timer value to the given amount of time (without changing running state)
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
-    [[ $t =~ Wrong ]] && printf "$t" && echo "$help_msg" && exit 1
-    [[ $t =~ ^- ]] && txtred "Negative time" && echo "$help_msg" && exit 1
+    [[ $t =~ Wrong ]] && err "Wrong time format" "$help_msg"
+    [[ $t =~ ^- ]] && err "Negative time" "$help_msg"
     spent_set $t
     [ $(config_get start) ] && config_set start $(date +%s)
 }
@@ -430,7 +432,7 @@ Adds or substracts time (without changing timer running state)
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
-    [[ $t =~ Wrong ]] && printf "$t" && echo "$help_msg" && exit 1
+    [[ $t =~ Wrong ]] && err "Wrong time format"  "$help_msg"
     spent_set $(( $(spent_get) + $t ))
 }
 
@@ -471,10 +473,7 @@ function gtm_undo() {
 }
 
 function gtm_task_new() {
-
-case $1 in
-    -h|--help)
-    echo "
+    local help_msg="
 `txtbold Usage`: `txtblue 'gtm task <branch_name> <-i number | -m title> [issue_options]'`
 
 Creates a task combining given branch and issue:
@@ -489,15 +488,15 @@ Creates a task combining given branch and issue:
    i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
  
    `txtgreen '[issue_options]'` are any options accepted by 'ghi open' (see 'ghi help open')
-";  exit ;;
-esac
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local name=$1
-    [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)"
+    [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)" "$help_msg"
     [ "$name" == "-" ] && name=$(current_branch)
 
     local issue_flag=$2
-    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong option: $issue_flag"
+    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong issue flag: $issue_flag" "$help_msg"
     local issue=$3
 
     local prefix=${name%/*}
@@ -547,10 +546,7 @@ esac
     esac
 }
 function gtm_task_connect() {
-
-case $1 in
-    -h|--help)
-    echo "
+    local help_msg="
 `txtbold Usage`: `txtblue 'gtm connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
 
 Connects task branch with and issue and transforms it to pull-request 
@@ -560,25 +556,28 @@ By default
  `txtbold '*'` `txtgreen '<task_branch>'` is current branch
  `txtbold '*'` `txtgreen '<base_branch>'` is master branch
  `txtbold '*'` `txtgreen '<issue_number>'` is issue assigned to the <task_branch> (if it exists)
-";  exit ;;
-esac
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     while (( $# )); do
         case $1 in
             -t)
-                [ ! $2 ] && err "Need an argument for -t: branch that you want to connect"
+                [ ! $2 ] && err "Need an argument for -t: task that you want to connect" "$help_msg"
                 local task=$2
+                [ ! "$(echo $branches | grep "$task")" ] && err "Task [$task] doesn't exist:" "$(gtm_list)"
                 ;;
             -b)
-                [ ! $2 ] && err "Need an argument for -b: base branch name"
+                [ ! $2 ] && err "Need an argument for -b: base branch name" "$help_msg"
                 local base=$2
+                [ ! "$(echo $branches | grep "$base")" ] && err "Branch [$base] doesn't exist:" "$(git branch)"
                 ;;
             -i)
-                [ ! $2 ] && err "Need an argument for -i: issue number"
+                [ ! $2 ] && err "Need an argument for -i: issue number" "$help_msg"
                 local issue=$2
                 ;;
             *)
-                err "Wrong options"
+                err "Wrong options: $*" "$help_msg" 
                 ;;
         esac
         shift 2
@@ -600,10 +599,7 @@ esac
     fi
 }
 function gtm_task_close() {
-
-case $1 in
-    -h|--help)
-    echo "
+    local help_msg="
 `txtbold Usage`: `txtblue 'gtm close [-b <base_branch>] [-i <issue_number>]'`
 
 Closes current task in several steps:
@@ -615,8 +611,8 @@ Closes current task in several steps:
 `txtbold 5.` Delete task branch and move the time remained on it to the base branch
 
 By default `txtgreen '<base_branch>'` is master and `txtgreen '<issue_number>'` is the issue assigned to the current task
-";  exit ;;
-esac
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local task=$(current_branch)
     [ "$task" == "master" ] && err "You are on [master] branch. Swith to the task, that you want to close"
@@ -624,19 +620,21 @@ esac
     local dirty=$(git status -s)
     [ "$dirty" ] && err "You have uncommited changes. Please, commit them first"
 
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     while (( $# )); do
         case $1 in
             -b)
-                [ ! $2 ] && err "Need an argument for -b: base branch name"
+                [ ! $2 ] && err "Need an argument for -b: base branch name" "$help_msg"
                 local base=$2
+                [ ! "$(echo $branches | grep "$base")" ] && err "Branch [$base] doesn't exist:" "$(git branch)"
                 ;;
             -i)
-                [ ! $2 ] && err "Need an argument for -i: issue number"
+                [ ! $2 ] && err "Need an argument for -i: issue number" "$help_msg"
                 local issue=$2
                 git config branch.$task.issue $issue
                 ;;
             *)
-                err "Wrong options"
+                err "Wrong options: $*" "$help_msg" 
                 ;;
         esac
         shift 2
@@ -681,40 +679,36 @@ esac
     echo
     ghi show $issue
 }
-function gtm_task_switch() {
 
-case $1 in
-    -h|--help)
-    echo "
+function gtm_task_switch() {
+    local help_msg="
 `txtbold Usage`: `txtblue 'gtm switch <issue_number>'`
 
 Switches to the task with given issue number (just does 'git checkout' to the corresponding branch)
-";  exit ;;
-esac
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local issue=$1
-    [ ! "$issue" ] && gtm_list && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch"
+    [ ! "$issue" ] && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch:" "$(gtm_list)"
     [ "$issue" == "-" ] && git checkout master
 
     local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
-    [ ! "$task" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing."
+    [ ! "$task" ] && err "No task #$issue. Create a new one or choose from existing:" "$(gtm_list)"
     git checkout $task
 }
-function gtm_task_info() {
 
-case $1 in
-    -h|--help)
-    echo "
+function gtm_task_info() {
+    local help_msg="
 `txtbold Usage`: `txtblue 'gtm show [-w]'`
 
 Shows issue which is bound to the current task (`txtgreen '-w'` option works as in ghi: open issue in web-browser)
-";  exit ;;
-esac
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     echo "Task `txtblue "[$(current_branch)]"`: `gtm_status`" 
     echo
     local issue=$(git config branch.$(current_branch).issue)
-    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm task -h'"
+    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
     [ "$1" == "-w" ] && web="-w"
     ghi show $issue $web
 }
