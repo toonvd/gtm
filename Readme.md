@@ -83,7 +83,7 @@ For example, we plan a meeting: somebody creates an issue mentioning others and 
 
 - create a task and connect it to that issue
 - start timer right before going to the meeting and stop it after it's ended
-- make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
+- make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"`
 - push it and do `gtm connect`
 - others do the same if they want and comment on meeting summary in the issue
 - somebody does `gtm close`, when discussion is finished
@@ -131,3 +131,5 @@ end
 For other commands and information use `gtm help`. If something is unclear and information is missing, please open an issue and I will extends documentation.
 
 Originally, it was a fork of [gtt (git time tracker) tool](http://gitorious.org/gtt/gtt) by Daniel Garcia Moreno and Eduardo Robles Elvira, but then I think, I've rewritten it almost from scratch.
+
+[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/27313b5f86976621be0037ff3a5b15f9 "githalytics.com")](http://githalytics.com/laughedelic.github.io/gtm)
