@@ -85,6 +85,8 @@ $ sudo ln -s gtm/gtm /usr/bin/gtm
 
 To see concise timer information without using `gtm status` all the time, you can place it in your shell prompt!
 
+![](http://i.imgur.com/NRdzXwF.png?1)
+
 #### zsh
 
 Somewhere in your zsh theme configuration:
