@@ -80,12 +80,13 @@ When you finished work on the task you can use `gtm close`. It will show you whi
 I use this tool for tracking time on my work for any kinds of tasks — _not only for programming_. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. 
 
 For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now 
-1. create a task and connect it to that issue
-2. start timer right before going to the meeting and stop it after it's ended
-3. make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
-4. push it and do `gtm connect`
-5. others do the same if they want and comment on meeting summary in the issue
-6. somebody does `gtm close`, when discussion is finished
+
+- create a task and connect it to that issue
+- start timer right before going to the meeting and stop it after it's ended
+- make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
+- push it and do `gtm connect`
+- others do the same if they want and comment on meeting summary in the issue
+- somebody does `gtm close`, when discussion is finished
 
 I use similar scenario when I need to read a paper or do any other task. Actually, the only difference with the usage for programming is that here I do empty commits. This way you can have a nice git history with all you work activities and records about spent time and you can use it to generate a report of arbitrary form (I will add some nice report generation to the tool soon).
 
