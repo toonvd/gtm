@@ -133,15 +133,17 @@ To view current state of timer use</p>
 
 <p>I use this tool for tracking time on my work for any kinds of tasks — <em>not only for programming</em>. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. </p>
 
-<p>For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now 
-1. create a task and connect it to that issue
-2. start timer right before going to the meeting and stop it after it's ended
-3. make an empty commit like <code>git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
-4. push it and do</code>gtm connect<code>
-5. others do the same if they want and comment on meeting summary in the issue
-6. somebody does</code>gtm close`, when discussion is finished</p>
+<p>For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now </p>
 
-<p>I use similar scenario when I need to read a paper or do any other task. Actually, the only difference with the usage for programming is that here I do empty commits. This way you can have a nice git history with all you work activities and records about spent time and you can use it to generate a report of arbitrary form (I will add some nice report generation to the tool soon).</p>
+<ul>
+<li>create a task and connect it to that issue</li>
+<li>start timer right before going to the meeting and stop it after it's ended</li>
+<li>make an empty commit like `git commit --allow-empty -m "Meeting with <a href="https://github.com/mrproper" class="user-mention">@mrproper</a> and <a href="https://github.com/bert" class="user-mention">@bert</a>: value of the universe"</li>
+<li>push it and do <code>gtm connect</code>
+</li>
+<li>others do the same if they want and comment on meeting summary in the issue</li>
+<li>somebody does <code>gtm close</code>, when discussion is finished</li>
+</ul><p>I use similar scenario when I need to read a paper or do any other task. Actually, the only difference with the usage for programming is that here I do empty commits. This way you can have a nice git history with all you work activities and records about spent time and you can use it to generate a report of arbitrary form (I will add some nice report generation to the tool soon).</p>
 
 <h2>Configuration</h2>
 
