@@ -118,12 +118,12 @@ Git time tracker and task manager (c) Alexey Alekhin
     `txtgreen switch` <number>       -- switch between tasks by issue number
     `txtgreen close`                 -- close current task
 
-    Use `txtblue 'gtm help <command>'` for more information about options and behaviour (for task commands)
+    Use `txtblue 'gtm help <command>'` for more information about options and behaviour
 "
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        task|connect|info|switch|close)
+        set|add|task|connect|info|switch|close)
             gtm $1 --help
         ;;
         *)
@@ -387,15 +387,53 @@ function gtm_summary() {
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
 }
 
+# parses [-]minutes or [-]hours:minutes and returns seconds
+function parse_time() {
+    local t=$1
+    local sign=1
+    local h=0
+    local m=0
+    [[ $t =~ ^- ]] && sign=-1 && t=${t:1}
+
+    if [[ $t =~ ^[0-9]+:[0-9]+$ ]]; then
+        h=${t%:*}
+        m=${t#*:}
+    elif [[ $t =~ ^[0-9]+$ ]]; then
+        m=$t
+    else
+        err "Wrong time format"
+    fi
+    echo $(( sign * h * 3600 + sign * m * 60 ))
+}
+
 function gtm_set() {
-    local t=${1:?"time amount needed"}
-    gtm_reset
-    spent_set $(( $t * 60 ))
+    local help_msg="
+`txtbold Usage`: `txtblue 'gtm set'` `txtyellow '<minutes>'` or `txtblue 'gtm set'` `txtyellow '<hours>:<minutes>'`
+
+Sets timer value to the given amount of time (without changing running state)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    local t=$(parse_time $1) 
+    [[ $t =~ Wrong ]] && printf "$t" && echo "$help_msg" && exit 1
+    [[ $t =~ ^- ]] && txtred "Negative time" && echo "$help_msg" && exit 1
+    spent_set $t
+    [ $(config_get start) ] && config_set start $(date +%s)
 }
+
 function gtm_add() {
-    local t=${1:?"time amount needed"}
-    spent_set $(( $t * 60 + $(spent_get) ))
+    local help_msg="
+`txtbold Usage`: `txtblue 'gtm add'` `txtyellow '[-]<minutes>'` or `txtblue 'gtm add'` `txtyellow '[-]<hours>:<minutes>'`
+
+Adds or substracts time (without changing timer running state)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    local t=$(parse_time $1) 
+    [[ $t =~ Wrong ]] && printf "$t" && echo "$help_msg" && exit 1
+    spent_set $(( $(spent_get) + $t ))
 }
+
 function gtm_steal() {
     case $1 in
         -i)
