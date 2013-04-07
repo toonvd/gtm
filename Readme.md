@@ -4,7 +4,7 @@ It is a tool for tracking time, that you spend on commits in your git repositori
 
 ## Usage
 
-### How it works
+### Time tracking
 
 Let's assume that you have a git repository, in which you'd like to start using `gtm`. Just go there and type
 ```bash
@@ -65,9 +65,29 @@ it will create branch `feature/topic/foo` and an issue with title `Task short de
 
 If you already have a branch and want to bind and issue to it just do the same (you can use `-` instead of branch name to use current one). Vice versa, if you already have an issue and want to create branch for solving it use `-i <issue_number>` instead of `-m "..."`.
 
+When you made some commits to the task branch and pushed them to remote you should do
+```bash
+$ gtm connect
+```
+it will make a pull-request from the bound issue, so that you will see all your commits related to this task in that issue.
+
 Now you can use `gtm show` to view the issue bound to the current task branch (with `-w` flag it will open it in your web browser). Also using `gtm list` you can see list of you branches with corresponding issue numbers. And when you want to switch between them, it may be convenient to use those numbers instead of typing branch names: `gtm switch <number>` will do that for you.
 
 When you finished work on the task you can use `gtm close`. It will show you which steps it's going to do and ask for confirmation. See `gtm help close` for more information.
+
+## General usage
+
+I use this tool for tracking time on my work for any kinds of tasks — _not only for programming_. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. 
+
+For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now 
+1. create a task and connect it to that issue
+2. start timer right before going to the meeting and stop it after it's ended
+3. make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
+4. push it and do `gtm connect`
+5. others do the same if they want and comment on meeting summary in the issue
+6. somebody does `gtm close`, when discussion is finished
+
+I use similar scenario when I need to read a paper or do any other task. Actually, the only difference with the usage for programming is that here I do empty commits. This way you can have a nice git history with all you work activities and records about spent time and you can use it to generate a report of arbitrary form (I will add some nice report generation to the tool soon).
 
 ## Configuration
 
