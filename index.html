@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>gtm by laughedelic</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/laughedelic/gtm">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/laughedelic/gtm/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/laughedelic/gtm/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>gtm</h1>
+          <p>git task manager (or time manager, if you don't like tasks)</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/laughedelic">laughedelic</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
+        </div>
+
+        <p><code>gtm</code> is a <strong>g</strong>it <strong>t</strong>ask <strong>m</strong>anager (or <strong>t</strong>ime <strong>m</strong>anager, if you don't like tasks).</p>
+
+<p>It is a tool for tracking time, that you spend on commits in your git repositories and managing tasks.</p>
+
+<h2>Usage</h2>
+
+<h3>How it works</h3>
+
+<p>Let's assume that you have a git repository, in which you'd like to start using <code>gtm</code>. Just go there and type</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm init
+</pre></div>
+
+<p>it will create special git hooks in your repository and set up git config to push and fetch notes with time information.</p>
+
+<blockquote>
+<p><strong>Warning</strong>: be careful if you have any custom local pre-commit, post-commit, post-checkout and post-merge hooks, because <code>gtm</code> just overwrites them</p>
+
+<p><strong>Note</strong>: after this command <code>git push</code> will push timetracker notes instead of default behaviour</p>
+</blockquote>
+
+<p>Now, every branch in your repository has it's own timer and they automatically switch, when you switch branches with <code>git checkout &lt;branch&gt;</code>. 
+To view current state of timer use</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm status
+</pre></div>
+
+<p>If you just did <code>init</code> and <code>status</code>, your timer is empty and turned off. To turn it on type</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm start
+</pre></div>
+
+<p>Now you can just work in you repository and when you commit changes with usual <code>git commit</code> timer information will be written to the commit note and timer will be reset.</p>
+
+<p>If you have a break or just want to spend some time watching cute cats on youtube, you cat pause timer with</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm stop
+</pre></div>
+
+<p>If you forgot to start or stop timer properly you can use <code>gtm set &lt;minutes&gt;</code> or <code>gtm add &lt;[-]minutes&gt;</code> to adjust timer state.</p>
+
+<p>To see the list of your branches and their timers you can use</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm list
+</pre></div>
+
+<p>That's basically all about time tracking with <code>gtm</code>. There are some other convenient commands — you can find them with <code>gtm help</code>.</p>
+
+<h4>Different git repositories</h4>
+
+<p>When you work on several projects simultaneously, you don't need to stop timer one timer and start another to switch between them. Just go to the repository where you want to work and type <code>gtm start</code> — it will automatically pause another timer and start new. Also if you have a brake, you don't need to search, where is that running timer to stop it — <code>gtm stop</code> works globally, from any place, even not a git repository!</p>
+
+<h3>Task management</h3>
+
+<p>The idea is very simple:</p>
+
+<ul>
+<li>Project should be split into small tasks</li>
+<li>Every task consists of
+
+<ul>
+<li>
+<em>GitHub issue</em> containing task description and discussion with team if needed</li>
+<li>
+<em>Git branch</em> containing task solution, i.e. all commits related to the task</li>
+<li>
+<em>Time tracker</em> helping you control how much time you spend on solving the task</li>
+</ul>
+</li>
+</ul><p>Separate branch for each task — almost like in Git Flow, but less strict, the main point is in binding these special branches and GitHub issues. This way you can think of your issues as a to-do list (+ just any general discussions) and <code>gtm</code> will help you work on each of them.</p>
+
+<p>To create a new task you can use</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm task feature/topic/foo -m <span class="s2">"Task short description"</span>
+</pre></div>
+
+<p>it will create branch <code>feature/topic/foo</code> and an issue with title <code>Task short description</code> and tags <code>feature</code> and <code>topic</code>. This prefix <code>feature/topic/</code> is unnecessary and you can use any branch name, it's just that I recommend to use something like this, because it helps you categorize branches and <code>gtm</code> will treat prefix as set of tags for issue — it's really convenient!</p>
+
+<p>If you already have a branch and want to bind and issue to it just do the same (you can use <code>-</code> instead of branch name to use current one). Vice versa, if you already have an issue and want to create branch for solving it use <code>-i &lt;issue_number&gt;</code> instead of <code>-m "..."</code>.</p>
+
+<p>Now you can use <code>gtm show</code> to view the issue bound to the current task branch (with <code>-w</code> flag it will open it in your web browser). Also using <code>gtm list</code> you can see list of you branches with corresponding issue numbers. And when you want to switch between them, it may be convenient to use those numbers instead of typing branch names: <code>gtm switch &lt;number&gt;</code> will do that for you.</p>
+
+<p>When you finished work on the task you can use <code>gtm close</code>. It will show you which steps it's going to do and ask for confirmation. See <code>gtm help close</code> for more information.</p>
+
+<h2>Configuration</h2>
+
+<h3>Installation</h3>
+
+<p>This tool requires installed git and <a href="https://github.com/stephencelis/ghi">ghi tool</a> for dealing with github issues.</p>
+
+<p><code>gtm</code> itself is just a bash script, so you can copy it to somewhere to your <code>PATH</code> or make a link/alias/whatever. Like this:</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>git clone https://github.com/laughedelic/gtm.git
+<span class="nv">$ </span>sudo ln -s gtm/gtm /usr/bin/gtm
+</pre></div>
+
+<h3>Timer information in the right prompt</h3>
+
+<p>To see concise timer information without using <code>gtm status</code> all the time, you can place it in your shell prompt!</p>
+
+<h4>zsh</h4>
+
+<p>Somewhere in your zsh theme configuration:</p>
+
+<div class="highlight"><pre>setopt PROMPT_SUBST
+<span class="nv">RPROMPT</span><span class="o">=</span><span class="s1">'%15{$(gtm prompt-status)%}'</span>
+</pre></div>
+
+<h4>fish</h4>
+
+<p>Just type in the shell</p>
+
+<div class="highlight"><pre><span class="k">function </span>fish_right_prompt
+   gtm prompt-status
+end
+</pre></div>
+
+<h2>More information</h2>
+
+<p>For other commands and information use <code>gtm help</code>. If something is unclear and information is missing, please open an issue and I will extends documentation.</p>
+
+<p>Originally, it was a fork of <a href="http://gitorious.org/gtt/gtt">gtt (git time tracker) tool</a> by Daniel Garcia Moreno and Eduardo Robles Elvira, but then I think, I've rewritten it almost from scratch.</p>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
