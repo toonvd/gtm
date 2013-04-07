@@ -32,7 +32,7 @@
       <section>
         <div id="title">
           <h1>gtm</h1>
-          <p>git task manager (or time manager, if you don't like tasks)</p>
+          <p>git task/time manager</p>
           <hr>
           <span class="credits left">Project maintained by <a href="https://github.com/laughedelic">laughedelic</a></span>
           <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="http://twitter.com/#!/michigangraham">mattgraham</a></span>
@@ -44,7 +44,7 @@
 
 <h2>Usage</h2>
 
-<h3>How it works</h3>
+<h3>Time tracking</h3>
 
 <p>Let's assume that you have a git repository, in which you'd like to start using <code>gtm</code>. Just go there and type</p>
 
@@ -118,9 +118,30 @@ To view current state of timer use</p>
 
 <p>If you already have a branch and want to bind and issue to it just do the same (you can use <code>-</code> instead of branch name to use current one). Vice versa, if you already have an issue and want to create branch for solving it use <code>-i &lt;issue_number&gt;</code> instead of <code>-m "..."</code>.</p>
 
+<p>When you made some commits to the task branch and pushed them to remote you should do</p>
+
+<div class="highlight"><pre><span class="nv">$ </span>gtm connect
+</pre></div>
+
+<p>it will make a pull-request from the bound issue, so that you will see all your commits related to this task in that issue.</p>
+
 <p>Now you can use <code>gtm show</code> to view the issue bound to the current task branch (with <code>-w</code> flag it will open it in your web browser). Also using <code>gtm list</code> you can see list of you branches with corresponding issue numbers. And when you want to switch between them, it may be convenient to use those numbers instead of typing branch names: <code>gtm switch &lt;number&gt;</code> will do that for you.</p>
 
 <p>When you finished work on the task you can use <code>gtm close</code>. It will show you which steps it's going to do and ask for confirmation. See <code>gtm help close</code> for more information.</p>
+
+<h2>General usage</h2>
+
+<p>I use this tool for tracking time on my work for any kinds of tasks — <em>not only for programming</em>. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. </p>
+
+<p>For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now 
+1. create a task and connect it to that issue
+2. start timer right before going to the meeting and stop it after it's ended
+3. make an empty commit like <code>git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"
+4. push it and do</code>gtm connect<code>
+5. others do the same if they want and comment on meeting summary in the issue
+6. somebody does</code>gtm close`, when discussion is finished</p>
+
+<p>I use similar scenario when I need to read a paper or do any other task. Actually, the only difference with the usage for programming is that here I do empty commits. This way you can have a nice git history with all you work activities and records about spent time and you can use it to generate a report of arbitrary form (I will add some nice report generation to the tool soon).</p>
 
 <h2>Configuration</h2>
 
@@ -162,6 +183,8 @@ end
 <p>For other commands and information use <code>gtm help</code>. If something is unclear and information is missing, please open an issue and I will extends documentation.</p>
 
 <p>Originally, it was a fork of <a href="http://gitorious.org/gtt/gtt">gtt (git time tracker) tool</a> by Daniel Garcia Moreno and Eduardo Robles Elvira, but then I think, I've rewritten it almost from scratch.</p>
+
+<p><a href="http://githalytics.com/laughedelic.github.io/gtm"><img src="https://cruel-carlota.pagodabox.com/27313b5f86976621be0037ff3a5b15f9" alt="githalytics.com alpha" title="githalytics.com"></a></p>
       </section>
 
     </div>
