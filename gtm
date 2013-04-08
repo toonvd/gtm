@@ -690,7 +690,7 @@ Switches to the task with given issue number (just does 'git checkout' to the co
 
     local issue=$1
     [ ! "$issue" ] && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch:" "$(gtm_list)"
-    [ "$issue" == "-" ] && git checkout master
+    [ "$issue" == "-" ] && git checkout master && exit
 
     local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
     [ ! "$task" ] && err "No task #$issue. Create a new one or choose from existing:" "$(gtm_list)"
