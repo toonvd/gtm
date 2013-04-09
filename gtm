@@ -225,27 +225,6 @@ function spent_set() {
     git config branch.$branch.spent $1
 }
 
-function gtm_ammend() {
-    local help_msg="
-`bold Usage`: `blue 'gtm ammend'` `yellow '[<commit_sha>]'`
-
-Sets currently spent time to the commit with given sha (HEAD by default)
-"
-    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
-
-    sha=${1:-"HEAD"}
-    running=$(start_date)
-    gtm_stop > /dev/null
-    spent=$(spent_get)
-
-    if [ $spent ]; then 
-        git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
-        echo "Time spent: $(human_time $spent)"
-        spent_set 0
-    fi
-    [ $running ] && start_from_now
-}
-
 function current_branch() { git rev-parse --abbrev-ref HEAD; }
 
 function current_time() {
@@ -398,7 +377,7 @@ function parse_time() {
 
 function gtm_set() {
     local help_msg="
-`bold Usage`: `blue 'gtm set'` `yellow '<minutes>'` or `blue 'gtm set'` `yellow '<hours>:<minutes>'`
+`bold Usage`: `blue 'gtm set'` `green '<minutes>'` or `blue 'gtm set'` `green '<hours>:<minutes>'`
 
 Sets timer value to the given amount of time (without changing running state)
 "
@@ -413,7 +392,7 @@ Sets timer value to the given amount of time (without changing running state)
 
 function gtm_add() {
     local help_msg="
-`bold Usage`: `blue 'gtm add'` `yellow '[-]<minutes>'` or `blue 'gtm add'` `yellow '[-]<hours>:<minutes>'`
+`bold Usage`: `blue 'gtm add'` `green '[-]<minutes>'` or `blue 'gtm add'` `green '[-]<hours>:<minutes>'`
 
 Adds or substracts time (without changing timer running state)
 "
@@ -422,6 +401,27 @@ Adds or substracts time (without changing timer running state)
     local t=$(parse_time $1) 
     [[ $t =~ Wrong ]] && err "Wrong time format"  "$help_msg"
     spent_set $(( $(spent_get) + $t ))
+}
+
+function gtm_ammend() {
+    local help_msg="
+`bold Usage`: `blue 'gtm ammend'` `green '[<commit_sha>]'`
+
+Sets currently spent time to the commit with given sha (HEAD by default)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    sha=${1:-"HEAD"}
+    running=$(start_date)
+    gtm_stop > /dev/null
+    spent=$(spent_get)
+
+    if [ $spent ]; then 
+        git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
+        echo "Time spent: $(human_time $spent)"
+        spent_set 0
+    fi
+    [ $running ] && start_from_now
 }
 
 function gtm_steal() {
@@ -462,16 +462,16 @@ function gtm_undo() {
 
 function gtm_task_new() {
     local help_msg="
-`bold Usage`: `blue 'gtm task <branch_name> <-i number | -m title> [issue_options]'`
+`bold Usage`: `blue 'gtm task'` `green '<branch_name> <-i number | -m title> [issue_options]'`
 
 Creates a task combining given branch and issue:
 
  `bold '*'` `green '<branch_name>'` can be an existing branch (use '`green -`' for current) or a name for new branch
 
  `bold '*'` If you want to bind task to an existing issue, use 
-     `green '-i'` <number>
+     `green '-i <number>'`
    else create a new one:
-     `green '-m'` <issue_title>
+     `green '-m <issue_title>'`
    it will be assigned to you and it will get labels retrieved from the branch name prefix,
    i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
  
@@ -535,7 +535,7 @@ Creates a task combining given branch and issue:
 }
 function gtm_task_connect() {
     local help_msg="
-`bold Usage`: `blue 'gtm connect [-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
+`bold Usage`: `blue 'gtm connect'` `green '[-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
 
 Connects task branch with and issue and transforms it to pull-request 
 (to merge it into base branch) if possible (i.e. if there are any pushed commits).
@@ -588,7 +588,7 @@ By default
 }
 function gtm_task_close() {
     local help_msg="
-`bold Usage`: `blue 'gtm close [-b <base_branch>] [-i <issue_number>]'`
+`bold Usage`: `blue 'gtm close'` `green '[-b <base_branch>] [-i <issue_number>]'`
 
 Closes current task in several steps:
 
@@ -670,7 +670,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
 
 function gtm_task_switch() {
     local help_msg="
-`bold Usage`: `blue 'gtm switch <issue_number>'`
+`bold Usage`: `blue 'gtm switch'` `green '<issue_number>'`
 
 Switches to the task with given issue number (just does 'git checkout' to the corresponding branch)
 "
@@ -687,9 +687,9 @@ Switches to the task with given issue number (just does 'git checkout' to the co
 
 function gtm_task_info() {
     local help_msg="
-`bold Usage`: `blue 'gtm show [-w]'`
+`bold Usage`: `blue 'gtm show'` `green '[-w]'`
 
-Shows issue which is bound to the current task (`green '-w'` option works as in ghi: open issue in web-browser)
+Shows issue which is bound to the current task ('`green -w`' option works as in ghi: open issue in web-browser)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
