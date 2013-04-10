@@ -799,7 +799,7 @@ case $subcommand in
         gtm_list
     ;;
     undo)
-        gtm_undo
+        gtm_undo "$@"
     ;;
     steal)
         gtm_steal "$@"
