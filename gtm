@@ -136,7 +136,7 @@ fi'
 function post_commit_hook() {
 echo '#!/bin/bash
 
-running=$(git config timetrack.start)
+running=$(git config timetracker.start)
 gtm stop > /dev/null
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 spent=$(git config branch.$current_branch.spent)
@@ -163,19 +163,19 @@ echo '#!/bin/bash
 
 if (( $3 == 1 )) # if branch is switched
 then
-    old_branch=$(git config timetrack.branch)
-    start=$(git config timetrack.start)
+    old_branch=$(git config timetracker.branch)
+    start=$(git config timetracker.start)
     spent=$(git config branch.$old_branch.spent)
     now=$(date +%s)
 
     # save state of old branch
     [ $start ] && spent=$(( $spent + $now - $start ))
     git config branch.$old_branch.spent ${spent:-0}
-    git config --unset timetrack.start
+    git config --unset timetracker.start
 
     # use new branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
-    git config timetrack.branch $current_branch
+    git config timetracker.branch $current_branch
     [ "$start" ] && gtm start &> /dev/null
 
     gtm list
@@ -211,8 +211,8 @@ function human_time() {
     fi
 }
 
-function start_date() { git config timetrack.start; }
-function start_from_now() { git config timetrack.start $(date +%s); }
+function start_date() { git config timetracker.start; }
+function start_from_now() { git config timetracker.start $(date +%s); }
 
 function spent_get() { 
     local branch=${1:-$(current_branch)}
@@ -255,7 +255,7 @@ function gitdir() { echo "$(git rev-parse --git-dir 2> /dev/null)"; }
 function gtm_start() {
     [ ! $(gitdir) ] && err "It's not a git root directory!"
 
-    local current_repo=$(git config --global timetrack.repo)
+    local current_repo=$(git config --global timetracker.repo)
     local current_dir=$(pwd -P)
     if [ "$current_repo" == "$current_dir" ] && [ $(start_date) ]; then
         gtm_status
@@ -263,13 +263,13 @@ function gtm_start() {
         [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtm_stop
         start_from_now
         spent_get > /dev/null
-        git config --global timetrack.repo $current_dir
+        git config --global timetracker.repo $current_dir
         echo "`gtm_status --no-status` `green [started]`"
     fi
 }
 
 function gtm_stop() {
-    local current_repo=$(git config --global timetrack.repo)
+    local current_repo=$(git config --global timetracker.repo)
     if [ ! "$current_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
         gtm_status
@@ -277,27 +277,26 @@ function gtm_stop() {
         local current_dir=$(pwd -P)
         [ "$current_repo" != "$current_dir" ] && cd $current_repo
         spent_set $(current_time)
-        git config --unset timetrack.start
+        git config --unset timetracker.start
 
         printf "`gtm_status --no-status` `red [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `blue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
-        git config --global --remove-section timetrack &> /dev/null
+        git config --global --remove-section timetracker &> /dev/null
     fi
 }
 
 function gtm_status() {
-    local spent=$(current_time)
-    [ "$1" == "--seconds" ] && echo $spent && exit 0
     local current_dir=$(pwd -P)
     if [ "$1" == "--global" ]; then
-        local current_repo=$(git config --global timetrack.repo)
-        if [ "$current_repo" != "$current_dir" ]; then
-            cd ${current_repo:-.}
-            echo -n "`pwd`: "; blue "[`current_branch`] "
-        fi
+        local current_repo=$(git config --global timetracker.repo)
+        [ ! "$current_repo" ] && err "No running timers"
+        cd $current_repo
+        echo -n "`pwd`: `blue "[$(current_branch)]"` "
     fi
+    local spent=$(current_time)
+    [ "$1" == "--seconds" ] && echo $spent && exit 0
     echo -n "$(human_time $spent)"
     [ "$1" != "--no-status" ] && echo `on_status`
     [ "$current_repo" ] && cd $current_dir
@@ -421,7 +420,7 @@ Sets currently spent time to the commit with given sha (HEAD by default)
         echo "Time spent: $(human_time $spent)"
         spent_set 0
     fi
-    [ $running ] && start_from_now
+    [ $running ] && gtm_start > /dev/null
 }
 
 function gtm_steal() {
@@ -514,7 +513,7 @@ Creates a task combining given branch and issue:
     [ "$issue_flag" == "-i" ] && ghi show $issue
     confirm
 
-    [ ! "$exists" ] && git checkout -b $name
+    [ ! "$exists" ] && git checkout -b $name &> /dev/null
 
     # issue binding
     case $issue_flag in
@@ -532,6 +531,7 @@ Creates a task combining given branch and issue:
             fi
         ;;
     esac
+    gtm_list
 }
 function gtm_task_connect() {
     local help_msg="
@@ -747,8 +747,8 @@ function gtm_config() {
         spent_get $branch &> /dev/null
     done
 
-    green "Git timetrack is configured. "
-    echo "Now run git pull if you don't want problems"
+    green "Git task manager is configured. "
+    echo "Now run 'git pull' and 'gtm merge' if you don't want problems"
 }
 
 #############
@@ -768,7 +768,7 @@ case $subcommand in
         exit 0
     ;;
     prompt-status)
-        if [ "$(git config timetrack.branch)" ]; then 
+        if [ "$(git config timetracker.branch)" ]; then 
             on_status && human_time $(current_time) --short 
         else
             gray "%15s" $(date +%T)
