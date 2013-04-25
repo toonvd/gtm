@@ -513,7 +513,7 @@ Creates a task combining given branch and issue:
     [ "$issue_flag" == "-i" ] && ghi show $issue
     confirm
 
-    [ ! "$exists" ] && git checkout -b $name > /dev/null
+    [ ! "$exists" ] && git checkout -b $name &> /dev/null
 
     # issue binding
     case $issue_flag in
