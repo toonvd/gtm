@@ -51,7 +51,7 @@
 <div class="highlight"><pre><span class="nv">$ </span>gtm init
 </pre></div>
 
-<p>it will create special git hooks in your repository and set up git config to push and fetch notes with time information.</p>
+<p>this will create special git hooks in your repository and set up git config to push and fetch notes with time information.</p>
 
 <blockquote>
 <p><strong>Warning</strong>: be careful if you have any custom local pre-commit, post-commit, post-checkout and post-merge hooks, because <code>gtm</code> just overwrites them</p>
@@ -59,7 +59,7 @@
 <p><strong>Note</strong>: after this command <code>git push</code> will push timetracker notes instead of default behaviour</p>
 </blockquote>
 
-<p>Now, every branch in your repository has it's own timer and they automatically switch, when you switch branches with <code>git checkout &lt;branch&gt;</code>. 
+<p>Now, every branch in your repository has its own timer and they automatically switch, when you switch branches with <code>git checkout &lt;branch&gt;</code>. 
 To view current state of timer use</p>
 
 <div class="highlight"><pre><span class="nv">$ </span>gtm status
@@ -72,7 +72,7 @@ To view current state of timer use</p>
 
 <p>Now you can just work in you repository and when you commit changes with usual <code>git commit</code> timer information will be written to the commit note and timer will be reset.</p>
 
-<p>If you have a break or just want to spend some time watching cute cats on youtube, you cat pause timer with</p>
+<p>If you have a break or just want to spend some time watching cute cats on youtube, you can pause timer with</p>
 
 <div class="highlight"><pre><span class="nv">$ </span>gtm stop
 </pre></div>
@@ -88,7 +88,7 @@ To view current state of timer use</p>
 
 <h4>Different git repositories</h4>
 
-<p>When you work on several projects simultaneously, you don't need to stop timer one timer and start another to switch between them. Just go to the repository where you want to work and type <code>gtm start</code> — it will automatically pause another timer and start new. Also if you have a brake, you don't need to search, where is that running timer to stop it — <code>gtm stop</code> works globally, from any place, even not a git repository!</p>
+<p>When you work on several projects simultaneously, you don't need to stop one timer and start another to switch between them. Just go to the repository where you want to work and type <code>gtm start</code> — it will automatically pause any other timer and start a new one. Also if you have a break, you don't need to search, where is that running timer to stop it — <code>gtm stop</code> works globally, from any place, even not a git repository!</p>
 
 <h3>Task management</h3>
 
@@ -131,7 +131,7 @@ To view current state of timer use</p>
 
 <h2>General usage</h2>
 
-<p>I use this tool for tracking time on my work for any kinds of tasks — <em>not only for programming</em>. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. </p>
+<p>I use this tool for tracking time on my work for any kinds of tasks — <em>not only for programming</em>. Every project has its own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. </p>
 
 <p>For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now </p>
 
