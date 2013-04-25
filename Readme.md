@@ -10,13 +10,13 @@ Let's assume that you have a git repository, in which you'd like to start using 
 ```bash
 $ gtm init
 ```
-it will create special git hooks in your repository and set up git config to push and fetch notes with time information.
+this will create special git hooks in your repository and set up git config to push and fetch notes with time information.
 
 > **Warning**: be careful if you have any custom local pre-commit, post-commit, post-checkout and post-merge hooks, because `gtm` just overwrites them
 
 > **Note**: after this command `git push` will push timetracker notes instead of default behaviour
 
-Now, every branch in your repository has it's own timer and they automatically switch, when you switch branches with `git checkout <branch>`. 
+Now, every branch in your repository has its own timer and they automatically switch, when you switch branches with `git checkout <branch>`. 
 To view current state of timer use
 ```bash
 $ gtm status
@@ -28,7 +28,7 @@ $ gtm start
 
 Now you can just work in you repository and when you commit changes with usual `git commit` timer information will be written to the commit note and timer will be reset.
 
-If you have a break or just want to spend some time watching cute cats on youtube, you cat pause timer with
+If you have a break or just want to spend some time watching cute cats on youtube, you can pause timer with
 ```bash
 $ gtm stop
 ```
@@ -44,7 +44,7 @@ That's basically all about time tracking with `gtm`. There are some other conven
 
 #### Different git repositories
 
-When you work on several projects simultaneously, you don't need to stop timer one timer and start another to switch between them. Just go to the repository where you want to work and type `gtm start` — it will automatically pause another timer and start new. Also if you have a brake, you don't need to search, where is that running timer to stop it — `gtm stop` works globally, from any place, even not a git repository!
+When you work on several projects simultaneously, you don't need to stop one timer and start another to switch between them. Just go to the repository where you want to work and type `gtm start` — it will automatically pause any other timer and start a new one. Also if you have a break, you don't need to search, where is that running timer to stop it — `gtm stop` works globally, from any place, even not a git repository!
 
 ### Task management
 
@@ -77,7 +77,7 @@ When you finished work on the task you can use `gtm close`. It will show you whi
 
 ## General usage
 
-I use this tool for tracking time on my work for any kinds of tasks — _not only for programming_. Every project has it's own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. 
+I use this tool for tracking time on my work for any kinds of tasks — _not only for programming_. Every project has its own git repository and when I start doing something — I run a timer, when I want to plan something — I create a task. 
 
 For example, we plan a meeting: somebody creates an issue mentioning others and suggesting time suitable for everybody. Now 
 
