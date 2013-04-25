@@ -703,6 +703,8 @@ Shows issue which is bound to the current task ('`green -w`' option works as in 
 
 function gtm_addhooks() {
     [ ! "$(gitdir)" ] && err "It's not a git root directory!"
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    [ ! "$branches" ] && err "Looks like an empty repository. Make an init commit and try again."
 
     local hooksdir="$(gitdir)/hooks"
     [ ! -d $hooksdir ] && mkdir $hooksdir
