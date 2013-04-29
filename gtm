@@ -264,7 +264,7 @@ function gtm_start() {
         start_from_now
         spent_get > /dev/null
         git config --global timetracker.repo $current_dir
-        echo "`gtm_status --no-state` `green [started]`"
+        echo "`gtm_status --no-label` `green [started]`"
     fi
 }
 
@@ -279,7 +279,7 @@ function gtm_stop() {
         spent_set $(current_time)
         git config --unset timetracker.start
 
-        printf "`gtm_status --no-state` `red [paused]`"
+        printf "`gtm_status --no-label` `red [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `blue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
@@ -302,10 +302,10 @@ Shows current timer state. Optional flags are
     local current_dir=$(pwd -P)
     while (( $# )); do
         case $1 in
-            --global)     local global=1;;
-            --seconds)    local seconds=1;;
-            --short)      local short="--short";;
-            --no-state)   local no_state=1;;
+            -g|--global) local global=1;;
+            --seconds)   local seconds=1;;
+            -s|--short)  local short="--short";;
+            --no-label)  local no_label=1;;
             *) err "Wrong option: $1" "$help_msg";;
         esac
         shift
@@ -323,7 +323,7 @@ Shows current timer state. Optional flags are
     else
         echo -n "$(human_time $spent $short)"
     fi
-    [ ! $no_state ] && echo -n $(on_status)
+    [ ! $no_label ] && echo -n $(on_status)
     echo
     [ "$current_repo" ] && cd $current_dir
 }
