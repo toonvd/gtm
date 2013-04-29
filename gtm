@@ -70,7 +70,7 @@ failed() {
 ### USAGE
 
 general_help="
-gtm v.$VERSION - git time tracker (git task manager) (c) Alexey Alekhin
+gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
 
 `bold 'Usage'`: `blue 'gtm command [options]'`
 
@@ -82,9 +82,7 @@ gtm v.$VERSION - git time tracker (git task manager) (c) Alexey Alekhin
 `bold 'Timer commands'`:
     `green start`                 -- start timer
     `green stop`                  -- pause timer
-    `green status`                -- show current timer state
-           --global       -- show current timer, even if it's not in the current repository
-       or  --seconds      -- show current timer value in seconds
+    `green status` [flags]        -- show current timer state (see `blue 'gtm help status'` for possible flags)
     `green add` <time>            -- add (or substract) time from the timer
     `green set` <time>            -- set time spent
     `green timesince`             -- set time spent since last commit
@@ -99,7 +97,7 @@ gtm v.$VERSION - git time tracker (git task manager) (c) Alexey Alekhin
     `green undo`   [<number>]     -- (soft) reset given number of commits (1 by default) and return their time
     `green amend`  [<commit_sha>] -- set currently spent time to the given commit (HEAD by default)
     `green delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
-    `green merge`  [remote]       -- merge timetracker notes from remote branch (origin by default)
+    `green merge`  [<remote>]     -- merge timetracker notes from remote branch (origin by default)
 
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
@@ -202,10 +200,8 @@ function human_time() {
 
     if [ "$2" == "--short" ]; then
         (( $h < 10 )) && hh=" $h:" || hh="$h:"
-        # (( $h == 0 )) && hh="    "
         (( $m < 10 )) && mm="0$m:" || mm="$m:"
-        # (( $m == 0 )) && mm="    "
-        (( $s < 10 )) && ss="0$s" || ss="$s"
+        (( $s < 10 )) && ss="0$s"  || ss="$s"
         echo " $hh$mm$ss"
     else 
         (( $h >  0 )) && printf "%2d hours "    $h
@@ -291,19 +287,46 @@ function gtm_stop() {
 }
 
 function gtm_status() {
+    local help_msg="
+`bold Usage`: `blue 'gtm status'` `green '[<flags>]'`
+
+Shows current timer state. Optional flags are
+ `bold '*'` `green '-g|--global'` - show status of running timer independently of where it is
+ `bold '*'` `green '--seconds'`   - show time in seconds
+ `bold '*'` `green '-s|--short'`  - show time in short format (hh:mm:ss)
+ `bold '*'` `green '--no-label'`  - hide `green [on]`/`red [off]` status label
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
     local current_dir=$(pwd -P)
-    if [ "$1" == "--global" ]; then
+    while (( $# )); do
+        case $1 in
+            --global)     local global=1;;
+            --seconds)    local seconds=1;;
+            --short)      local short="--short";;
+            --no-state)   local no_state=1;;
+            *) err "Wrong option: $1" "$help_msg";;
+        esac
+        shift
+    done
+    if [ $global ]; then
         local current_repo=$(git config --global timetracker.repo)
         [ ! "$current_repo" ] && err "No running timers"
         cd $current_repo
         echo -n "`pwd`: `blue "[$(current_branch)]"` "
     fi
+
     local spent=$(current_time)
-    [ "$1" == "--seconds" ] && echo $spent && exit 0
-    echo -n "$(human_time $spent)"
-    [ "$1" != "--no-status" ] && echo `on_status`
+    if [ "$seconds" ]; then 
+        echo $spent && exit 0
+    else
+        echo -n "$(human_time $spent $short)"
+    fi
+    [ ! $no_state ] && echo -n $(on_status)
+    echo
     [ "$current_repo" ] && cd $current_dir
 }
+
 function gtm_list() {
     local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
     local current_branch=$(current_branch)
@@ -336,6 +359,7 @@ function gtm_list() {
         echo
     done
 }
+
 function gtm_summary() {
     local alltimes=$(git log --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
     local allusers=$(git log --format="%ae" | sort | uniq)
@@ -773,14 +797,14 @@ case $subcommand in
         exit 0
     ;;
     version|-v|--version)
-        echo "gtm v.$VERSION - git time tracker (git task manager) (c) Alexey Alekhin"
+        echo "gtm v.$VERSION - git task/time manager (c) Alexey Alekhin"
         exit 0
     ;;
     prompt-status)
         if [ "$(git config timetracker.branch)" ]; then 
             on_status && human_time $(current_time) --short 
         else
-            gray "%15s" $(date +%T)
+            printf "%15s" $(date +%T)
         fi
         exit 0
     ;;
