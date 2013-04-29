@@ -98,6 +98,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
     `green amend`  [<commit_sha>] -- set currently spent time to the given commit (HEAD by default)
     `green delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
     `green merge`  [<remote>]     -- merge timetracker notes from remote branch (origin by default)
+    `green push`                  -- pushes current branch (setting upstream) and pushes timetracker notes
 
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
@@ -448,6 +449,11 @@ Sets currently spent time to the commit with given sha (HEAD by default)
         spent_set 0
     fi
     [ $running ] && gtm_start > /dev/null
+}
+
+function gtm_push() {
+    git push -u origin $(current_branch)
+    git push
 }
 
 function gtm_steal() {
@@ -871,6 +877,9 @@ case $subcommand in
     ;;
     merge)
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
+    ;;
+    push)
+        gtm_push
     ;;
 # Tasks:
     task)
