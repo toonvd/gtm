@@ -112,7 +112,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        set|add|amend|task|connect|info|switch|close)
+        status|set|add|amend|task|connect|info|switch|close)
             gtm $1 --help
         ;;
         *)
@@ -264,7 +264,7 @@ function gtm_start() {
         start_from_now
         spent_get > /dev/null
         git config --global timetracker.repo $current_dir
-        echo "`gtm_status --no-status` `green [started]`"
+        echo "`gtm_status --no-state` `green [started]`"
     fi
 }
 
@@ -279,7 +279,7 @@ function gtm_stop() {
         spent_set $(current_time)
         git config --unset timetracker.start
 
-        printf "`gtm_status --no-status` `red [paused]`"
+        printf "`gtm_status --no-state` `red [paused]`"
         [ "$current_repo" != "$current_dir" ] && echo " in `blue [$current_repo]`" || echo
 
         [ "$current_repo" != "$current_dir" ] && cd $current_dir
