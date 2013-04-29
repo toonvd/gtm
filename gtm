@@ -94,7 +94,7 @@ Git time tracker and task manager (c) Alexey Alekhin
 
 `bold 'Commits related commands'`:
     `green undo`   [<number>]     -- (soft) reset given number of commits (1 by default) and return their time
-    `green ammend` [<commit_sha>] -- set currently spent time to the given commit (HEAD by default)
+    `green amend`  [<commit_sha>] -- set currently spent time to the given commit (HEAD by default)
     `green delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
     `green merge`  [remote]       -- merge timetracker notes from remote branch (origin by default)
 
@@ -110,7 +110,7 @@ Git time tracker and task manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        set|add|ammend|task|connect|info|switch|close)
+        set|add|amend|task|connect|info|switch|close)
             gtm $1 --help
         ;;
         *)
@@ -402,9 +402,9 @@ Adds or substracts time (without changing timer running state)
     spent_set $(( $(spent_get) + $t ))
 }
 
-function gtm_ammend() {
+function gtm_amend() {
     local help_msg="
-`bold Usage`: `blue 'gtm ammend'` `green '[<commit_sha>]'`
+`bold Usage`: `blue 'gtm amend'` `green '[<commit_sha>]'`
 
 Sets currently spent time to the commit with given sha (HEAD by default)
 "
@@ -806,8 +806,8 @@ case $subcommand in
     steal)
         gtm_steal "$@"
     ;;
-    ammend)
-        gtm_ammend "$@"
+    amend)
+        gtm_amend "$@"
     ;;
     delete)
         git notes --ref timetracker remove ${1:-HEAD}
