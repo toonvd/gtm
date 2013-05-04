@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.3"
+VERSION="0.3.4"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -249,40 +249,42 @@ function user_time_dedication() {
 function on_status() { [ $(start_date) ] && green "  [on]" || red " [off]"; }
 
 function gitdir() { echo "$(git rev-parse --git-dir 2> /dev/null)"; }
+function gitroot() { echo "$(git rev-parse --show-toplevel 2> /dev/null)"; }
 
 ### SUBCOMMANDS
 
 function gtm_start() {
     [ ! $(gitdir) ] && err "It's not a git root directory!"
 
-    local current_repo=$(git config --global timetracker.repo)
-    local current_dir=$(pwd -P)
-    if [ "$current_repo" == "$current_dir" ] && [ $(start_date) ]; then
+    local running_repo=$(git config --global timetracker.repo)
+    local current_repo=$(gitroot)
+    if [ "$running_repo" == "$current_repo" ] && [ $(start_date) ]; then
         gtm_status
     else
-        [ "$current_repo" ] && [ "$current_repo" != "$current_dir" ] && gtm_stop
+        [ "$running_repo" ] && [ "$running_repo" != "$current_repo" ] && gtm_stop
         start_from_now
         spent_get > /dev/null
-        git config --global timetracker.repo $current_dir
+        git config --global timetracker.repo $current_repo
         echo "`gtm_status --no-label` `green [started]`"
     fi
 }
 
 function gtm_stop() {
-    local current_repo=$(git config --global timetracker.repo)
-    if [ ! "$current_repo" ]; then
+    local running_repo=$(git config --global timetracker.repo)
+    if [ ! "$running_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
         gtm_status
     else
         local current_dir=$(pwd -P)
-        [ "$current_repo" != "$current_dir" ] && cd $current_repo
+        local current_repo=$(gitroot)
+        [ "$running_repo" != "$current_repo" ] && cd $running_repo
         spent_set $(current_time)
         git config --unset timetracker.start
 
         printf "`gtm_status --no-label` `red [paused]`"
-        [ "$current_repo" != "$current_dir" ] && echo " in `blue [$current_repo]`" || echo
+        [ "$running_repo" != "$current_repo" ] && echo " in `blue [$running_repo]`" || echo
 
-        [ "$current_repo" != "$current_dir" ] && cd $current_dir
+        [ "$running_repo" != "$current_repo" ] && cd $current_dir
         git config --global --remove-section timetracker &> /dev/null
     fi
 }
