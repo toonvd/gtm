@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.4"
+VERSION="0.3.5"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -715,9 +715,10 @@ Switches to the task with given issue number (just does 'git checkout' to the co
     [ ! "$issue" ] && err "Choose task you want to switch to and use it's issue number or '-' for [master] branch:" "$(gtm_list)"
     [ "$issue" == "-" ] && git checkout master && exit
 
-    local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+    local task=$(git config --get-regexp "branch.*.issue" | grep " $issue$")
     [ ! "$task" ] && err "No task #$issue. Create a new one or choose from existing:" "$(gtm_list)"
-    git checkout $task
+    local branch=${task%.issue*}
+    git checkout ${branch#branch.}
 }
 
 function gtm_task_info() {
