@@ -264,7 +264,7 @@ function gtm_start() {
         [ "$running_repo" ] && [ "$running_repo" != "$current_repo" ] && gtm_stop
         start_from_now
         spent_get > /dev/null
-        git config --global timetracker.repo $current_repo
+        git config --global timetracker.repo "$current_repo"
         echo "`gtm_status --no-label` `green [started]`"
     fi
 }
@@ -277,14 +277,14 @@ function gtm_stop() {
     else
         local current_dir=$(pwd -P)
         local current_repo=$(gitroot)
-        [ "$running_repo" != "$current_repo" ] && cd $running_repo
+        [ "$running_repo" != "$current_repo" ] && cd "$running_repo"
         spent_set $(current_time)
         git config --unset timetracker.start
 
         printf "`gtm_status --no-label` `red [paused]`"
         [ "$running_repo" != "$current_repo" ] && echo " in `blue [$running_repo]`" || echo
 
-        [ "$running_repo" != "$current_repo" ] && cd $current_dir
+        [ "$running_repo" != "$current_repo" ] && cd "$current_dir"
         git config --global --remove-section timetracker &> /dev/null
     fi
 }
@@ -315,7 +315,7 @@ Shows current timer state. Optional flags are
     if [ $global ]; then
         local current_repo=$(git config --global timetracker.repo)
         [ ! "$current_repo" ] && err "No running timers"
-        cd $current_repo
+        cd "$current_repo"
         echo -n "`pwd`: `blue "[$(current_branch)]"` "
     fi
 
@@ -327,7 +327,7 @@ Shows current timer state. Optional flags are
     fi
     [ ! $no_label ] && echo -n $(on_status)
     echo
-    [ "$current_repo" ] && cd $current_dir
+    [ "$current_repo" ] && cd "$current_dir"
     exit 0
 }
 
