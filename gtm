@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.5"
+VERSION="0.3.6"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -533,7 +533,9 @@ Creates a task combining given branch and issue:
     if [ "$exists" ]; then
         local step1="`bold 1.` Use an existing branch `blue [$name]`"
     else
-        local step1="`bold 1.` Create a new branch `blue [$name]`"
+        local cb=$(current_branch)
+        [ "$cb" == "master" ] && cb=$(blue [$cb]) || cb=$(red [$cb])
+        local step1="`bold 1.` Create a new branch `blue [$name]` from $cb" 
     fi
     case $issue_flag in
         -i)
@@ -550,6 +552,7 @@ Creates a task combining given branch and issue:
     confirm
 
     [ ! "$exists" ] && git checkout -b $name &> /dev/null
+    git config branch.$name.base $(current_branch)
 
     # issue binding
     case $issue_flag in
@@ -569,6 +572,7 @@ Creates a task combining given branch and issue:
     esac
     gtm_list
 }
+
 function gtm_task_connect() {
     local help_msg="
 `bold Usage`: `blue 'gtm connect'` `green '[-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
@@ -578,7 +582,7 @@ Connects task branch with and issue and transforms it to pull-request
 
 By default
  `bold '*'` `green '<task_branch>'` is current branch
- `bold '*'` `green '<base_branch>'` is master branch
+ `bold '*'` `green '<base_branch>'` is the branch from which the task was created
  `bold '*'` `green '<issue_number>'` is issue assigned to the <task_branch> (if it exists)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
@@ -607,7 +611,8 @@ By default
         shift 2
     done
     local task=${task:-$(current_branch)}
-    local base=${base:-master}
+    local base=${base:-$(git config branch.$task.base)}
+    base=${base:-master}
     local issue=${issue:-$(git config branch.$task.issue)}
     if [ -z "$issue" ]; then
         red "Please provide issue number with -i option:\n"
@@ -622,6 +627,7 @@ By default
         echo "Push commits and try to connect again"
     fi
 }
+
 function gtm_task_close() {
     local help_msg="
 `bold Usage`: `blue 'gtm close'` `green '[-b <base_branch>] [-i <issue_number>]'`
@@ -663,7 +669,8 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
         esac
         shift 2
     done
-    local base=${base:-master}
+    local base=${base:-$(git config branch.$task.base)}
+    base=${base:-master}
     local issue=${issue:-$(git config branch.$task.issue)}
     if [ ! "$issue" ]; then 
         red "Task is not connected to any issue."
@@ -674,7 +681,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     local step2="`bold 2.` Push `blue [$task]` branch"
     local step3="`bold 3.` Transform issue `yellow \#${issue}` into a pull-request"
     local step4="`bold 4.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
-    local step5="`bold 5.` Delete `blue [$task]` task and move the time remained on it to `blue [$base]`"
+    local step5="`bold 5.` Delete `blue [$task]` task and move the time remained on it to `green [$base]`"
     overview "$step1" "$step2" "$step3" "$step4" "$step5" 
     echo
     echo "$step1"
