@@ -533,9 +533,9 @@ Creates a task combining given branch and issue:
     if [ "$exists" ]; then
         local step1="`bold 1.` Use an existing branch `blue [$name]`"
     else
-        local cb=$(current_branch)
-        [ "$cb" == "master" ] && cb=$(blue [$cb]) || cb=$(red [$cb])
-        local step1="`bold 1.` Create a new branch `blue [$name]` from $cb" 
+        local base=$(current_branch)
+        [ "$base" == "master" ] && base=$(blue [$base]) || base=$(red [$base])
+        local step1="`bold 1.` Create a new branch `blue [$name]` from $base" 
     fi
     case $issue_flag in
         -i)
@@ -551,8 +551,10 @@ Creates a task combining given branch and issue:
     [ "$issue_flag" == "-i" ] && ghi show $issue
     confirm
 
-    [ ! "$exists" ] && git checkout -b $name &> /dev/null
-    git config branch.$name.base $(current_branch)
+    if [ ! "$exists" ]; then
+        git checkout -b $name &> /dev/null
+        git config branch.$name.base ${base:master}
+    fi
 
     # issue binding
     case $issue_flag in
