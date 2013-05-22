@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.6"
+VERSION="0.3.7"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -344,7 +344,7 @@ function gtm_list() {
     done
     lwidth=$(( lwidth + 2 )) # for [...]
 
-    underline "$(bold "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent")"
+    [ ! "$1" == "--no-header" ] && underline "$(bold "  #  %-${lwidth}s %${rwidth}s \n" "Task" "Time spent")"
     for branch in $branches; do
         local spent=$(human_time $(git config branch.$branch.spent))
         local issue=$(git config branch.$branch.issue)
@@ -534,8 +534,7 @@ Creates a task combining given branch and issue:
         local step1="`bold 1.` Use an existing branch `blue [$name]`"
     else
         local base=$(current_branch)
-        [ "$base" == "master" ] && base=$(blue [$base]) || base=$(red [$base])
-        local step1="`bold 1.` Create a new branch `blue [$name]` from $base" 
+        local step1="`bold 1.` Create a new branch `blue [$name]` from `red [$base]`" 
     fi
     case $issue_flag in
         -i)
@@ -848,7 +847,7 @@ case $subcommand in
         gtm_status
     ;;
     list)
-        gtm_list
+        gtm_list "$@"
     ;;
     undo)
         gtm_undo "$@"
