@@ -1,0 +1,75 @@
+#!/bin/bash
+
+week=$(( $(date +%W) + 1 ))
+[[ "$1" =~ [0-9]+ ]] && week=$1 && shift
+
+until_week=$week
+[[ "$1" =~ [0-9]+ ]] && until_week=$1 && shift
+
+function monday() {
+    local week=$1
+    local year=${2:-$(date +%Y)}
+    local fst_week_day=$(date -d $year-01-01 +%u)
+
+    date -d "$year-01-01 -$((fst_week_day - 1)) day +$(($week - 1)) week" +%F
+}
+
+function sunday() {
+    date -d "$(monday $*) +6 day" +%F
+}
+
+
+# defaults
+header="# Weekly training records"
+prefix_week="## "
+prefix_project="### "
+prefix_repo="#. "
+list_format="    + `[%h]` %s (_human_time_)"
+
+
+# file with projects map and format options
+file="./projects.map"
+[[ "$1" =~ --projects ]] && file=${2:?"Expected projects map file!"} && shift 2
+source "$file"
+(( $? != 0 )) && exit
+
+function list() {
+	local week=$1
+	shift
+	local mon=$(date -d "`monday $week`" +%d.%m.%Y)
+	local sun=$(date -d "`sunday $week`" +%d.%m.%Y)
+
+	echo
+	echo "${prefix_week}Week $week ($mon – $sun)"
+
+	for project_id in ${projects[@]}; do
+		local project=( $(project $project_id) )
+		local name=${project[0]//_/ }
+		local repos=${project[@]:1}
+		local repo_data=""
+
+		for repo in ${repos[@]}; do
+			cd "$prefix/$repo"
+			info=$(gtm report -f "$list_format" "--since=$mon" "--until=$sun" "$@")
+			[ "$info" ] && repo_data="${repo_data}\n${prefix_repo}${repo}\n${info}"
+		done
+
+		if [ "$repo_data" ]; then
+			echo
+			echo "${prefix_project}${name}"
+			echo -e "$repo_data"
+		fi
+	done
+}
+
+
+starting_point=$(pwd)
+
+echo $header
+
+until (( $week > $until_week )); do
+	list $week "$@"
+	week=$(( week + 1 ))
+done
+
+cd $starting_point

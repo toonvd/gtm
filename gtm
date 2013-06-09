@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.7"
+VERSION="0.4.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -200,15 +200,27 @@ function human_time() {
     done
 
     if [ "$2" == "--short" ]; then
-        (( $h < 10 )) && hh=" $h:" || hh="$h:"
+        (( $h < 10 )) && hh="0$h:" || hh="$h:"
         (( $m < 10 )) && mm="0$m:" || mm="$m:"
         (( $s < 10 )) && ss="0$s"  || ss="$s"
-        echo " $hh$mm$ss"
+        echo "$hh$mm$ss"
     else 
         (( $h >  0 )) && printf "%2d hours "    $h
         (( $m >  0 )) && printf "%2d minutes "  $m
         (( $s >= 0 )) && printf "%2d seconds\n" $s
     fi
+}
+
+function monday() {
+    local week=$1
+    local year=${2:-$(date +%Y)}
+    local fst_week_day=$(date -d $year-01-01 +%u)
+
+    date -d "$year-01-01 -$((fst_week_day - 1)) day +$(($week - 1)) week" +%F
+}
+
+function sunday() {
+    date -d "$(monday $*) +6 day" +%F
 }
 
 function start_date() { git config timetracker.start; }
@@ -384,6 +396,44 @@ function gtm_summary() {
         total=$(( $total + $t ))
     done
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
+}
+
+function gtm_report() {
+    local help_msg="
+`bold Usage`: `blue 'gtm report'` `green '[<options>]'` `green '[<git log options>]'`
+
+Shows list of commits which have time information. Optional flags are
+ `bold '*'` `green '-w|--week'`   - use particular week of this year
+ `bold '*'` `green '-f|--format'` - format of each line in the list with placeholder for time info ('_time_' or '_human_time_')
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    while [[ $1 =~ -[wf] ]]; do
+        case $1 in
+            -w)
+                [ ! "$2" ] && err "Need an argument for $1: week number" "$help_msg"
+                local week="--since=$(monday $2) --until=$(sunday $2)"
+                shift
+                ;;
+            -f)
+                [ ! "$2" ] && err "Need an argument for $1: format with placeholder for time" "$help_msg"
+                local format=$2
+                shift
+                ;;
+        esac
+        shift
+    done
+    local format=${format:-" * _time_ – [%h] %s"}
+
+    local hashes=($(git --no-pager log --format="%H" --reverse $week "$@"))
+    for h in ${hashes[@]}; do
+        local t=$(git --no-pager notes --ref=refs/notes/timetracker show $h 2> /dev/null | cut -d' ' -f 2)
+        fmt=${format/_human_time_/$(human_time $t)}
+        fmt=${fmt/_time_/$(human_time $t --short)}
+        if [ "$t" ]; then
+            git --no-pager show --format="$fmt" $h | head -1
+        fi
+    done
 }
 
 # parses [-]minutes or [-]hours:minutes and returns seconds
@@ -820,7 +870,7 @@ case $subcommand in
     ;;
     prompt-status)
         if [ "$(git config timetracker.branch)" ]; then 
-            on_status && human_time $(current_time) --short 
+            on_status && echo -n " " && human_time $(current_time) --short 
         else
             printf "%15s" $(date +%T)
         fi
@@ -864,6 +914,9 @@ case $subcommand in
     summary)
         gtm_summary "$@"
     ;;
+    report)
+        gtm_report "$@"
+    ;;
     log)
         git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/gtm human-time \1/e" | less -R
     ;;
@@ -875,7 +928,7 @@ case $subcommand in
         gtm_status
     ;;
     human-time)
-        human_time ${1:?"need time in seconds"}
+        human_time "$@"
     ;;
     addhooks)
         gtm_addhooks
