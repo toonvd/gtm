@@ -205,9 +205,17 @@ function human_time() {
         (( $s < 10 )) && ss="0$s"  || ss="$s"
         echo "$hh$mm$ss"
     else 
-        (( $h >  0 )) && printf "%2d hours "    $h
-        (( $m >  0 )) && printf "%2d minutes "  $m
-        (( $s >= 0 )) && printf "%2d seconds\n" $s
+        (( $h > 0 )) && printf "%2d hour"    $h
+        (( $h > 1 )) && printf "s " || printf "  "
+
+        (( $m > 0 )) && printf "%2d minute"  $m
+        (( $m > 1 )) && printf "s " || printf "  "
+
+        (( $s > 0 )) || (( $h + $m + $s == 0 )) && \
+                        printf "%2d second" $s && \
+            (( $s != 1 )) && printf "s" || printf " "
+
+        echo
     fi
 }
 
@@ -454,6 +462,7 @@ Shows list of commits which have time information. Optional flags are
         if [ "$t" ]; then
             # if it's not empty
             [ "${fmt// /}" ] && git --no-pager show --format="$fmt" $h | head -1
+            # [[ "$t" =~ [^0-9] ]] && err "$(pwd): $h"
             total=$(( $total + $t ))
         fi
     done
