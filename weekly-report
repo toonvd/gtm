@@ -20,11 +20,12 @@ function sunday() {
 
 
 # defaults
-header="# Weekly training records"
-prefix_week="## "
-prefix_project="### "
-prefix_repo="#. "
-list_format='    + `[%h] _time_` — %s'
+header='# Weekly training records \n\n'
+week_format='## %s \n\n'
+project_format='### %s \n\n'
+repo_format='#. %s \n'
+commit_format='    + `[%h] _time_` — %s'
+total_format='    In total: _human_time_\n'
 
 
 # file with projects map and format options
@@ -39,8 +40,7 @@ function list() {
 	local mon=$(date -d "`monday $week`" +%d.%m.%Y)
 	local sun=$(date -d "`sunday $week`" +%d.%m.%Y)
 
-	echo
-	echo "${prefix_week}Week $week ($mon – $sun)"
+	printf "$week_format" "Week $week ($mon — $sun)"
 
 	for project_id in ${projects[@]}; do
 		local project=( $(project $project_id) )
@@ -50,13 +50,13 @@ function list() {
 
 		for repo in ${repos[@]}; do
 			cd "$prefix/$repo"
-			info=$(gtm report -f "$list_format" "--since=$mon" "--until=$sun" "$@")
-			[ "$info" ] && repo_data="${repo_data}\n${prefix_repo}${repo}\n${info}"
+			local commits=$(gtm report -f "$commit_format" -t "$total_format" "--since=$mon" "--until=$sun" "$@")
+			repo=${repo_format/\%s/"$repo"}
+			[ "$commits" ] && repo_data="${repo_data}${repo}${commits}\n"
 		done
 
 		if [ "$repo_data" ]; then
-			echo
-			echo "${prefix_project}${name}"
+			printf "$project_format" "$name"
 			echo -e "$repo_data"
 		fi
 	done
@@ -65,7 +65,7 @@ function list() {
 
 starting_point=$(pwd)
 
-echo $header
+printf "$header"
 
 until (( $week > $until_week )); do
 	list $week "$@"

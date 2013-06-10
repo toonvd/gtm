@@ -444,10 +444,12 @@ Shows list of commits which have time information. Optional flags are
     for h in ${hashes[@]}; do
         local t=$(git --no-pager notes --ref=refs/notes/timetracker show $h 2> /dev/null \
             | sed 's/^ *[^0-9]*\([0-9]\+\) *$/\1/')
+        t=${t// /}
         fmt=${format/_human_time_/$(human_time $t)}
         fmt=${fmt/_time_/$(human_time $t --short)}
         if [ "$t" ]; then
-            git --no-pager show --format="$fmt" $h | head -1
+            # if it's not empty
+            [ "${fmt// /}" ] && git --no-pager show --format="$fmt" $h | head -1
             total=$(( $total + $t ))
         fi
     done
