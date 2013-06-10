@@ -24,7 +24,7 @@ header="# Weekly training records"
 prefix_week="## "
 prefix_project="### "
 prefix_repo="#. "
-list_format='    + `[%h]` %s (_human_time_)'
+list_format='    + `[%h] _time_` — %s'
 
 
 # file with projects map and format options
