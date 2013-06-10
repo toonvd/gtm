@@ -50,7 +50,7 @@ function list() {
 
 		for repo in ${repos[@]}; do
 			cd "$prefix/$repo"
-			local commits=$(gtm report -f "$commit_format" -t "$total_format" "--since=$mon" "--until=$sun" "$@")
+			local commits=$(gtm report -f "$commit_format" -t "$total_format" -w $week "$@")
 			repo=${repo_format/\%s/"$repo"}
 			[ "$commits" ] && repo_data="${repo_data}${repo}${commits}\n"
 		done

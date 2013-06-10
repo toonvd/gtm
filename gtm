@@ -405,7 +405,7 @@ function gtm_report() {
 Shows list of commits which have time information. Optional flags are
  `bold '*'` `green '-w|--week'`   - use particular week of this year (1..53)
  `bold '*'` `green '-f|--format'` - format of each line in the list with a placeholder for the time info ('_time_' or '_human_time_')
- `bold '*'` `green '-t|--total'`  - foramt of the total line (set it to space if you don't want it at all)
+ `bold '*'` `green '-t|--total'`  - format of the total line (set it to space if you don't want it at all)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
@@ -416,7 +416,11 @@ Shows list of commits which have time information. Optional flags are
             -w|--week)
                 [[ "$2" =~ [^0-9] ]] || (( $2 < 1 )) || (( $2 > 53 )) && \
                     err "Wrong argument for $1: should be a week number (1..53)" "$help_msg"
-                git_args="$git_args --since=$(monday $2) --until=$(sunday $2)"
+                local current_week=$(( $(date +%W) + 1 ))
+                (( $2 > $current_week )) && err "It's not a fortune teller, current week is $current_week ($(monday $current_week) - $(sunday $current_week))"
+                local mon=$(date -d "$(monday $2) -1 day" +%F)
+                local sun=$(sunday $2)
+                git_args="$git_args --since=$mon --until=$sun"
                 shift
                 ;;
             -f|--format)
