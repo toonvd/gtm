@@ -39,7 +39,7 @@ err() {
 }
 confirm() {
     echo "$1"
-    read -n 1 -p "`gray "[press any key to continue]"`"
+    read -n 1 -p "[press any key to continue]"
     # now go up one line and erase it
     tput cuu1 && tput el
     echo
@@ -49,7 +49,7 @@ overview() {
     for s in "$@"; do
         echo $s
     done
-    read -n 1 -p "`gray "[review steps and press any key to continue]"`"
+    read -n 1 -p "[review steps and press any key to continue]"
     local n=$(( $# + 2 ))
     until (( n == 0 )); do
         tput cuu1 && tput el
@@ -61,7 +61,7 @@ failed() {
     local msg=${2:-"Previous step has failed"}
     if (( $result != 0 )); then
         echo `red "$msg"`
-        read -n 1 -p "`gray "[press Ctrl-C to stop or any other key to continue]"`"
+        read -n 1 -p "[press Ctrl-C to stop or any other key to continue]"
         tput cuu1 && tput el
         echo
     fi
@@ -112,7 +112,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        status|set|add|amend|task|connect|info|switch|close)
+        status|set|add|amend|task|connect|info|switch|close|report|push)
             gtm $1 --help
         ;;
         *)
@@ -542,8 +542,16 @@ Sets currently spent time to the commit with given sha (HEAD by default)
 }
 
 function gtm_push() {
-    git push -u origin $(current_branch)
+    local help_msg="
+`bold Usage`: `blue 'gtm push'`
+
+Pushes timetracker notes and then current branch (setting upstream)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
     git push
+    failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
+    git push -u origin $(current_branch)
 }
 
 function gtm_steal() {
@@ -882,7 +890,7 @@ function gtm_config() {
     done
 
     green "Git task manager is configured. "
-    echo "Now run 'git pull' and 'gtm merge' if you don't want problems"
+    echo "Now run '`blue 'git pull'`' and '`blue 'gtm merge'`' if you don't want problems"
 }
 
 #############
@@ -981,7 +989,7 @@ case $subcommand in
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
     push)
-        gtm_push
+        gtm_push "$@"
     ;;
 # Tasks:
     task)
