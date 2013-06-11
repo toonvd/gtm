@@ -23,9 +23,9 @@ function sunday() {
 header='# Weekly training records \n\n'
 week_format='## %s \n\n'
 project_format='### %s \n\n'
-repo_format='#. %s \n'
-commit_format='    + `[%h] _time_` — %s'
-total_format='    In total: _human_time_\n'
+repo_format='#. _repo_ \n'
+commit_format='    + `[%h]` `_time_` — %s'
+total_format='\n    In total: _human_time_\n'
 
 
 # file with projects map and format options
@@ -43,20 +43,20 @@ function list() {
 	printf "$week_format" "Week $week ($mon — $sun)"
 
 	for project_id in ${projects[@]}; do
-		local project=( $(project $project_id) )
-		local name=${project[0]//_/ }
-		local repos=${project[@]:1}
+		local project_list=( $(project $project_id) )
+		local project=${project_list[0]//_/ }
+		local repos=${project_list[@]:1}
 		local repo_data=""
 
 		for repo in ${repos[@]}; do
 			cd "$prefix/$repo"
 			local commits=$(gtm report -f "$commit_format" -t "$total_format" -w $week "$@")
-			repo=${repo_format/\%s/"$repo"}
+			repo=${repo_format//_repo_/"$repo"}
 			[ "$commits" ] && repo_data="${repo_data}${repo}${commits}\n"
 		done
 
 		if [ "$repo_data" ]; then
-			printf "$project_format" "$name"
+			printf "$project_format" "$project"
 			echo -e "$repo_data"
 		fi
 	done
