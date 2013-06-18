@@ -734,7 +734,7 @@ Closes current task in several steps:
 `bold 2.` Push task branch
 `bold 3.` Transform bound issue into a pull-request
 `bold 4.` Push base branch and timetracker notes (it will close the issue)
-`bold 5.` Delete task branch and move the time remained on it to the base branch
+`bold 5.` Archive task branch and move the time remained on it to the base branch
 
 By default `green '<base_branch>'` is master and `green '<issue_number>'` is the issue assigned to the current task
 "
@@ -777,7 +777,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     local step2="`bold 2.` Push `blue [$task]` branch"
     local step3="`bold 3.` Transform issue `yellow \#${issue}` into a pull-request"
     local step4="`bold 4.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
-    local step5="`bold 5.` Delete `blue [$task]` task and move the time remained on it to `green [$base]`"
+    local step5="`bold 5.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
     overview "$step1" "$step2" "$step3" "$step4" "$step5" 
     echo
     echo "$step1"
@@ -801,8 +801,9 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     echo
     echo "$step5"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
+    git tag archive/$task $task
     git branch -d $task
-    failed $? "Couldn't delete branch [$task]"
+    failed $? "Couldn't archive branch [$task]"
     echo
     ghi show $issue
 }
