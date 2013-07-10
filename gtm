@@ -261,7 +261,7 @@ Starts the timer and sets it's value if it's given (see `blue 'gtm help set'`)
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     [ ! $(gitdir) ] && err "It's not a git root directory!"
-    
+
     [ "$1" ] && gtm_set $1 > /dev/null
 
     local running_repo=$(git config --global timetracker.repo)
@@ -821,7 +821,10 @@ function gtm_config() {
 
 #############
 
-(( $# == 0 )) && show_help && exit 0
+if (( $# == 0 )); then 
+    [ ! $(gitdir) ] && show_help && exit 0
+    gtm_status && exit 0
+fi
 
 subcommand=$1
 shift
