@@ -417,7 +417,6 @@ Shows list of commits which have time information. Optional flags are
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    # while [[ $1 =~ -[wf] ]]; do
     local git_args=""
     while (( $# )); do
         case $1 in
