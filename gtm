@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.3.7"
+VERSION="0.4.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -80,11 +80,10 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
     `green init`                  -- set gtm configuration (hooks and git-config); run this in every new repository
 
 `bold 'Timer commands'`:
-    `green start`                 -- start timer
-    `green stop`                  -- pause timer
+    `green start` <[+-]time>      -- start timer (setting time if given)
+    `green stop` <[+-]time>       -- pause timer (setting time if given)
     `green status` [flags]        -- show current timer state (see `blue 'gtm help status'` for possible flags)
-    `green add` <time>            -- add (or substract) time from the timer
-    `green set` <time>            -- set time spent
+    `green set` <[+-]time>        -- set/add/subtract spent time 
     `green timesince`             -- set time spent since last commit
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
@@ -112,7 +111,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        status|set|add|amend|task|connect|info|switch|close)
+        status|set|start|stop|amend|task|connect|info|switch|close)
             gtm $1 --help
         ;;
         *)
@@ -254,7 +253,16 @@ function gitroot() { echo "$(git rev-parse --show-toplevel 2> /dev/null)"; }
 ### SUBCOMMANDS
 
 function gtm_start() {
+    local help_msg="
+`bold Usage`: `blue 'gtm start'` `green '[<[+-]time>]'`
+
+Starts the timer and sets it's value if it's given (see `blue 'gtm help set'`)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
     [ ! $(gitdir) ] && err "It's not a git root directory!"
+    
+    [ "$1" ] && gtm_set $1 > /dev/null
 
     local running_repo=$(git config --global timetracker.repo)
     local current_repo=$(gitroot)
@@ -270,6 +278,13 @@ function gtm_start() {
 }
 
 function gtm_stop() {
+    local help_msg="
+`bold Usage`: `blue 'gtm start'` `green '[<[+-]time>]'`
+
+Stops the timer and sets it's value if it's given (see `blue 'gtm help set'`)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
     local running_repo=$(git config --global timetracker.repo)
     if [ ! "$running_repo" ]; then
         [ ! $(gitdir) ] && err "No running timers"
@@ -280,6 +295,7 @@ function gtm_stop() {
         [ "$running_repo" != "$current_repo" ] && cd "$running_repo"
         spent_set $(current_time)
         git config --unset timetracker.start
+        [ "$1" ] && gtm_set $1 > /dev/null
 
         printf "`gtm_status --no-label` `red [paused]`"
         [ "$running_repo" != "$current_repo" ] && echo " in `blue [$running_repo]`" || echo
@@ -386,12 +402,13 @@ function gtm_summary() {
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
 }
 
-# parses [-]minutes or [-]hours:minutes and returns seconds
+# parses [+-]minutes or [+-]hours:minutes and returns seconds
 function parse_time() {
     local t=$1
     local sign=1
     local h=0
     local m=0
+    [[ $t =~ ^\+ ]] && t=${t:1}
     [[ $t =~ ^- ]] && sign=-1 && t=${t:1}
 
     if [[ $t =~ ^[0-9]+:[0-9]+$ ]]; then
@@ -407,17 +424,21 @@ function parse_time() {
 
 function gtm_set() {
     local help_msg="
-`bold Usage`: `blue 'gtm set'` `green '<minutes>'` or `blue 'gtm set'` `green '<hours>:<minutes>'`
+`bold Usage`: `blue 'gtm set'` `green '<[+-]minutes>'` or `blue 'gtm set'` `green '<[+-]hours>:<minutes>'`
 
-Sets timer value to the given amount of time (without changing running state)
+Sets timer value to the given amount of time, adds (with +) or subtracts (with -) without changing running state
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
+    echo $t
     [[ $t =~ Wrong ]] && err "Wrong time format" "$help_msg"
-    [[ $t =~ ^- ]] && err "Negative time" "$help_msg"
-    spent_set $t
-    [ $(start_date) ] && start_from_now
+    if [[ $1 =~ ^[+-] ]]; then
+        spent_set $(( $(spent_get) + $t ))
+    else
+        spent_set $t
+        [ $(start_date) ] && start_from_now
+    fi
 }
 
 function gtm_add() {
@@ -807,7 +828,7 @@ shift
 
 case $subcommand in
     stop|-p)
-        gtm_stop
+        gtm_stop "$@"
         exit 0
     ;;
     usage|-h|--help|help)
@@ -833,17 +854,13 @@ if [ ! $(gitdir) ] && [ "$1" != "--help" ] && [ "$1" != "-h" ]; then
 fi
 case $subcommand in
     start)
-        gtm_start
+        gtm_start "$@"
     ;;
     status)
         gtm_status "$@"
     ;;
     set)
         gtm_set "$@"
-        gtm_status
-    ;;
-    add)
-        gtm_add "$@"
         gtm_status
     ;;
     list)
