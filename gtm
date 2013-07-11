@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.4.0"
+VERSION="0.4.1"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -431,7 +431,6 @@ Sets timer value to the given amount of time, adds (with +) or subtracts (with -
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
-    echo $t
     [[ $t =~ Wrong ]] && err "Wrong time format" "$help_msg"
     if [[ $1 =~ ^[+-] ]]; then
         spent_set $(( $(spent_get) + $t ))
