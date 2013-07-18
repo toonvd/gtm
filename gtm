@@ -83,7 +83,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
     `green start` <[+-]time>      -- start timer (setting time if given)
     `green stop` <[+-]time>       -- pause timer (setting time if given)
     `green status` [flags]        -- show current timer state (see `blue 'gtm help status'` for possible flags)
-    `green set` <[+-]time>        -- set/add/subtract spent time 
+    `green set` <[+-]time>        -- set/add/subtract spent time (see help for time formats)
     `green timesince`             -- set time spent since last commit
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
@@ -402,16 +402,22 @@ function gtm_summary() {
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
 }
 
-# parses [+-]minutes or [+-]hours:minutes and returns seconds
+# parses [+-]minutes or [+-]hours:minutes or [+-]hours:minutes:seconds and returns seconds
 function parse_time() {
     local t=$1
     local sign=1
     local h=0
     local m=0
+    local s=0
     [[ $t =~ ^\+ ]] && t=${t:1}
     [[ $t =~ ^- ]] && sign=-1 && t=${t:1}
 
-    if [[ $t =~ ^[0-9]+:[0-9]+$ ]]; then
+    if [[ $t =~ ^[0-9]+:[0-9]+:[0-9]+$ ]]; then
+        h=${t%%:*} # [h]: m : s
+        m=${t#*:}  #  h :[m : s]
+        s=${m#*:}  #      m :[s]
+        m=${m%:*}  #     [m]: s
+    elif [[ $t =~ ^[0-9]+:[0-9]+$ ]]; then
         h=${t%:*}
         m=${t#*:}
     elif [[ $t =~ ^[0-9]+$ ]]; then
@@ -419,14 +425,19 @@ function parse_time() {
     else
         err "Wrong time format"
     fi
-    echo $(( sign * h * 3600 + sign * m * 60 ))
+    t=$(( h * 3600 + m * 60 + s ))
+    echo $(( sign * t ))
 }
 
 function gtm_set() {
     local help_msg="
-`bold Usage`: `blue 'gtm set'` `green '<[+-]minutes>'` or `blue 'gtm set'` `green '<[+-]hours>:<minutes>'`
+`bold Usage`: `blue 'gtm set'` `green '<[+-]time>'`
 
-Sets timer value to the given amount of time, adds (with +) or subtracts (with -) without changing running state
+Sets, adds (with +) or subtracts (with -) given amount of time, without changing running state of the timer. 
+`green '<time>'` may be in one of the following formats:
+ `bold '*'` `green 'hours:minutes:seconds'`
+ `bold '*'` `green 'hours:minutes'`
+ `bold '*'` `green '      minutes'`
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
