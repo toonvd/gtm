@@ -82,8 +82,8 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Timer commands'`:
     `green start` <[+-]time>      -- start timer (setting time if given)
     `green stop` <[+-]time>       -- pause timer (setting time if given)
+    `green set` <[+-]time>        -- set/add/subtract spent time (see help for time formats); `green set` word can be ommited
     `green status` [flags]        -- show current timer state (see `blue 'gtm help status'` for possible flags)
-    `green set` <[+-]time>        -- set/add/subtract spent time (see help for time formats)
     `green timesince`             -- set time spent since last commit
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
@@ -187,6 +187,7 @@ fi'
 
 function human_time() {
     local s=${1:-0}
+    s=${s#-} # removing - sign
     local m=0
     while (( $s >= 60 )); do
         m=$(( $m + $s / 60 ))
@@ -431,9 +432,9 @@ function parse_time() {
 
 function gtm_set() {
     local help_msg="
-`bold Usage`: `blue 'gtm set'` `green '<[+-]time>'`
+`bold Usage`: `blue 'gtm set'` `green '<[+-]time>'` or just `blue 'gtm'` `green '<[+-]time>'`
 
-Sets, adds (with +) or subtracts (with -) given amount of time, without changing running state of the timer. 
+Sets, adds (with +) or subtracts (with -) given amount of time (without changing running state of the timer)
 `green '<time>'` may be in one of the following formats:
  `bold '*'` `green 'hours:minutes:seconds'`
  `bold '*'` `green 'hours:minutes'`
@@ -444,7 +445,12 @@ Sets, adds (with +) or subtracts (with -) given amount of time, without changing
     local t=$(parse_time $1) 
     [[ $t =~ Wrong ]] && err "Wrong time format" "$help_msg"
     if [[ $1 =~ ^[+-] ]]; then
-        spent_set $(( $(spent_get) + $t ))
+        spent_set $(current_time)
+        [ $(start_date) ] && start_from_now
+        t=$(( $(spent_get) + $t ))
+        local ht=$(human_time $t --short)
+        (( $t < 0 )) && err "Negative time: -${ht##* }"
+        spent_set $t 
     else
         spent_set $t
         [ $(start_date) ] && start_from_now
@@ -940,7 +946,13 @@ case $subcommand in
         gtm_task_info "$@"
     ;;
     *)
-        red "Wrong subcommand: "; echo "$subcommand"
-        show_help
+        t=$(parse_time $subcommand) 
+        if [[ ! $t =~ Wrong ]]; then
+            gtm_set $subcommand
+            gtm_status
+        else
+            red "Wrong subcommand: "; echo "$subcommand"
+            show_help
+        fi
     ;;
 esac
