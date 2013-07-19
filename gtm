@@ -306,6 +306,26 @@ Stops the timer and sets it's value if it's given (see `blue 'gtm help set'`)
     fi
 }
 
+function gtm_tmp() {
+    local help_msg="
+`bold Usage`: `blue 'gtm tmp'` `green '[<description>]'`
+
+Runs/stops temporary global timer, which can be added then to any repository/branch/task 
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    # [ "$1" ] && gtm_set $1 > /dev/null
+
+    local running_repo=$(git config --global timetracker.repo)
+    # local current_repo=$(gitroot)
+    [ "$running_repo" ] && [ "$running_repo" != "tmp" ] && gtm_stop
+    git config --global timetracker.repo "tmp"
+    if 
+        start_from_now
+        echo "`gtm_status --no-label` `blue [tmp]`"
+    fi
+}
+
 function gtm_status() {
     local help_msg="
 `bold Usage`: `blue 'gtm status'` `green '[<flags>]'`
@@ -875,6 +895,9 @@ case $subcommand in
     start)
         gtm_start "$@"
     ;;
+    tmp)
+		gtm_tmp "$@"
+	;;
     status)
         gtm_status "$@"
     ;;
