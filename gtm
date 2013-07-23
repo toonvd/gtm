@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.5.1"
+VERSION="0.6.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -70,7 +70,7 @@ failed() {
 ### USAGE
 
 general_help="
-gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
+gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 
 `bold 'Usage'`: `blue 'gtm command [options]'`
 
@@ -78,6 +78,7 @@ gtm v.$VERSION - git task/time manager (c) Alexey Alekhin
     `green 'usage|-h|--help|help'`  -- show this mesage
     `green 'version|-v|--version'`  -- show current version
     `green init`                  -- set gtm configuration (hooks and git-config); run this in every new repository
+    `green repo`                  -- (path to) the repository of the current running timer
 
 `bold 'Timer commands'`:
     `green start` <[+-]time>      -- start timer (setting time if given)
@@ -346,6 +347,19 @@ Shows current timer state. Optional flags are
     echo
     [ "$current_repo" ] && cd "$current_dir"
     exit 0
+}
+
+function gtm_repo() {
+    local help_msg="
+`bold Usage`: `blue 'gtm repo'`
+
+Show path to the repo of the current running timer (if any)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    local current_repo=$(git config --global timetracker.repo)
+    [ ! "$current_repo" ] && err "No running timers"
+    echo "$current_repo"
 }
 
 function gtm_list() {
@@ -845,6 +859,7 @@ fi
 subcommand=$1
 shift
 
+# global commands
 case $subcommand in
     stop|-p)
         gtm_stop "$@"
@@ -855,7 +870,7 @@ case $subcommand in
         exit 0
     ;;
     version|-v|--version)
-        echo "gtm v.$VERSION - git task/time manager (c) Alexey Alekhin"
+        echo "gtm v$VERSION - git task/time manager (c) Alexey Alekhin"
         exit 0
     ;;
     prompt-status)
@@ -866,8 +881,13 @@ case $subcommand in
         fi
         exit 0
     ;;
+    repo)
+        gtm_repo
+        exit 0
+    ;;
 esac
 
+# rest of the commands work only in a git repository
 if [ ! $(gitdir) ] && [ "$1" != "--help" ] && [ "$1" != "-h" ]; then
     err "It's not a git root directory!"
 fi
