@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.6.1"
+VERSION="0.6.2"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -515,7 +515,9 @@ function gtm_steal() {
         -i)
             local issue=$2
             [ ! "$issue" ] && gtm_list && err "Choose task number, from which you want to steal time"
-            local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$" | cut -d "." -f 2)
+            local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$")
+            branch=${branch#branch.}
+            branch=${branch%.issue $issue}
             [ ! "$branch" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing."
         ;;
         -b)
