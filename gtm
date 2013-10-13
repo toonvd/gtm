@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.6.2"
+VERSION="0.7.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -39,7 +39,7 @@ err() {
 }
 confirm() {
     echo "$1"
-    read -n 1 -p "`gray "[press any key to continue]"`"
+    read -n 1 -p "[press any key to continue]"
     # now go up one line and erase it
     tput cuu1 && tput el
     echo
@@ -49,7 +49,7 @@ overview() {
     for s in "$@"; do
         echo $s
     done
-    read -n 1 -p "`gray "[review steps and press any key to continue]"`"
+    read -n 1 -p "[review steps and press any key to continue]"
     local n=$(( $# + 2 ))
     until (( n == 0 )); do
         tput cuu1 && tput el
@@ -61,7 +61,7 @@ failed() {
     local msg=${2:-"Previous step has failed"}
     if (( $result != 0 )); then
         echo `red "$msg"`
-        read -n 1 -p "`gray "[press Ctrl-C to stop or any other key to continue]"`"
+        read -n 1 -p "[press Ctrl-C to stop or any other key to continue]"
         tput cuu1 && tput el
         echo
     fi
@@ -89,9 +89,15 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
        or [-b <branch>]      pick task by branch name
+
+`bold 'Information commands'`:
     `green list`                  -- list all tasks with issue numbers and timers information
-    `green summary`               -- print summary of spent time by authors
     `green log`                   -- same as git-log but with human-format time notes
+    `green summary`               -- print summary of spent time by authors
+    `green report` [options]      -- print list of commits with time information and summary
+    `green weekly-report`         -- print reports grouped by weeks for a set of projects
+      [<first>] [<last>]     week diapason (just current week by default)
+      --projects <file>      file with projects mapping config (see help for details)
 
 `bold 'Commits related commands'`:
     `green undo`   [<number>]     -- (soft) reset given number of commits (1 by default) and return their time
@@ -112,7 +118,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        status|set|start|stop|amend|task|connect|info|switch|close)
+        status|set|add|start|stop|amend|task|connect|info|switch|close|report|weekly-report|push)
             gtm $1 --help
         ;;
         *)
@@ -201,15 +207,37 @@ function human_time() {
     done
 
     if [ "$2" == "--short" ]; then
-        (( $h < 10 )) && hh=" $h:" || hh="$h:"
+        (( $h < 10 )) && hh="0$h:" || hh="$h:"
         (( $m < 10 )) && mm="0$m:" || mm="$m:"
         (( $s < 10 )) && ss="0$s"  || ss="$s"
-        echo " $hh$mm$ss"
+        echo "$hh$mm$ss"
     else 
-        (( $h >  0 )) && printf "%2d hours "    $h
-        (( $m >  0 )) && printf "%2d minutes "  $m
-        (( $s >= 0 )) && printf "%2d seconds\n" $s
+        (( $h > 0 )) && printf "%2d hour"    $h
+        (( $h > 1 )) && printf "s " || printf "  "
+
+        (( $m > 0 )) && printf "%2d minute"  $m
+        (( $m > 1 )) && printf "s " || printf "  "
+
+        (( $s > 0 )) || (( $h + $m + $s == 0 )) && \
+                        printf "%2d second" $s && \
+            (( $s != 1 )) && printf "s" || printf " "
+
+        echo
     fi
+}
+
+# given the number of week and optionally year, returns the date of it's week monday
+function monday() {
+    local week=$1
+    local year=${2:-$(date +%Y)}
+    local fst_week_day=$(date -d $year-01-01 +%u)
+
+    date -d "$year-01-01 -$((fst_week_day - 1)) day +$(($week - 1)) week" +%F
+}
+
+# the same as monay function +6 days
+function sunday() {
+    date -d "$(monday $*) +6 day" +%F
 }
 
 function start_date() { git config timetracker.start; }
@@ -417,6 +445,152 @@ function gtm_summary() {
     printf "\n%-40s %s\n" "Total time spent in this branch" "$(human_time $total)"
 }
 
+function gtm_report() {
+    local help_msg="
+`bold Usage`: `blue 'gtm report'` `green '[<options>]'` `green '[<git log options>]'`
+
+Shows list of commits which have time information. Optional flags are
+ `bold '*'` `green '-w|--week'`   - use particular week of this year (1..53)
+ `bold '*'` `green '-f|--format'` - format of each line in the list with a placeholder for the time info ('_time_' or '_human_time_')
+ `bold '*'` `green '-t|--total'`  - format of the total line (set it to space if you don't want it at all)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    local git_args=""
+    while (( $# )); do
+        case $1 in
+            -w|--week)
+                [[ "$2" =~ [^0-9] ]] || (( $2 < 1 )) || (( $2 > 53 )) && \
+                    err "Wrong argument for $1: should be a week number (1..53)" "$help_msg"
+                local current_week=$(( $(date +%W) + 1 ))
+                (( $2 > $current_week )) && err "It's not a fortune teller, current week is $current_week ($(monday $current_week) - $(sunday $current_week))"
+                local mon=$(date -d "$(monday $2) -1 day" +%F)
+                local sun=$(sunday $2)
+                git_args="$git_args --since=$mon --until=$sun"
+                shift
+                ;;
+            -f|--format)
+                [ ! "$2" ] && err "Need an argument for $1: format with placeholder for time" "$help_msg"
+                local format=$2
+                shift
+                ;;
+            -t|--total)
+                local total_line=$2
+                shift
+                ;;
+            *)
+                git_args="$git_args $1"
+                ;;
+        esac
+        shift
+    done
+    # defaults
+    local format=${format:-" * [%h] _time_ - %s"}
+    local offset=${format%%[^ ]*}
+    local total_line="${total_line:-${offset}"In total: _human_time_"}"
+
+    local total=0
+    local hashes=($(git --no-pager log --format="%H" --reverse $git_args))
+    for h in ${hashes[@]}; do
+        local t=$(git --no-pager notes --ref=refs/notes/timetracker show $h 2> /dev/null \
+            | sed 's/^ *[^0-9]*\([0-9]\+\) *$/\1/')
+        t=${t// /}
+        # if it's not empty
+        if [ "$t" ]; then
+            fmt=${format/_human_time_/$(human_time $t)}
+            fmt=${fmt/_time_/$(human_time $t --short)}
+            [ "${fmt// /}" ] && git --no-pager show --format="$fmt" $h | head -1
+            # [[ "$t" =~ [^0-9] ]] && err "$(pwd): $h"
+            total=$(( $total + $t ))
+        fi
+    done
+    if [ "${total_line// /}" ] && (( $total > 0 )); then
+        local pre="${total_line/_human_time_/$(human_time $total)}"
+        echo "${pre/_time_/$(human_time $total --short)}"
+    fi
+
+}
+
+function gtm_weekly_report() {
+    local help_msg="
+`bold Usage`: `blue 'gtm weekly-report'` `green '[<first week>] [<last week>]'` `green '--projects <file>'` `green '[<git log options>]'`
+
+Shows time reports (as `blue 'gtm report'`) grouped by weeks for a set of projects. You can set a configuration for the report with the following parameter:
+ `bold '*'` `green '--projects <file>'` - projects configuration file
+
+This projects mapping file is supposed to be a simple bash script, defining 
+ * `green prefix` string — path prefix of your local repositories;
+ * `green project` dispatch function — which takes project key and returns a string, that has project name (title) as the first row and the list of repositories as the following rows;
+ * `green projects` list — list of projects keys;
+
+This file can also redefine format options: `green header`, `green week_format`, `green project_format`, `green repo_format`, `green commit_format`, `green total_format`.
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+
+    week=$(( $(date +%W) + 1 ))
+    [[ "$1" =~ [0-9]+ ]] && week=$1 && shift
+
+    until_week=$week
+    [[ "$1" =~ [0-9]+ ]] && until_week=$1 && shift
+
+    # defaults
+    header='# Weekly time records report \n\n'
+    week_format='## %s \n\n'
+    project_format='### %s \n\n'
+    repo_format='#. _repo_ \n'
+    commit_format='    + `[%h]` `_time_` — %s'
+    total_format='\n    In total: _human_time_\n'
+
+
+    # file with projects map and format options
+    file=""
+    [[ "$1" =~ --projects ]] && file=${2:?"Expected projects map file!"} && shift 2
+    source "$file"
+    (( $? != 0 )) && err "Failed to source '$file' script" ""
+
+
+    function list() {
+        local week=$1
+        shift
+        local mon=$(date -d "`monday $week`" +%d.%m.%Y)
+        local sun=$(date -d "`sunday $week`" +%d.%m.%Y)
+
+        printf "$week_format" "Week $week ($mon — $sun)"
+
+        for project_id in ${projects[@]}; do
+            local project_list=( $(project $project_id) )
+            local project=${project_list[0]//_/ }
+            local repos=${project_list[@]:1}
+            local repo_data=""
+
+            for repo in ${repos[@]}; do
+                cd "$prefix/$repo"
+                local commits=$(gtm report -f "$commit_format" -t "$total_format" -w $week "$@")
+                repo=${repo_format//_repo_/"$repo"}
+                [ "$commits" ] && repo_data="${repo_data}${repo}${commits}\n"
+            done
+
+            if [ "$repo_data" ]; then
+                printf "$project_format" "$project"
+                echo -e "$repo_data"
+            fi
+        done
+    }
+
+    local starting_point=$(pwd)
+
+    echo -e "$header"
+
+    until (( $week > $until_week )); do
+        list $week "$@"
+        week=$(( week + 1 ))
+    done
+
+    cd $starting_point
+
+}
+
 # parses [+-]minutes or [+-]hours:minutes or [+-]hours:minutes:seconds and returns seconds
 function parse_time() {
     local t=$1
@@ -506,8 +680,16 @@ Sets currently spent time to the commit with given sha (HEAD by default)
 }
 
 function gtm_push() {
-    git push -u origin $(current_branch)
+    local help_msg="
+`bold Usage`: `blue 'gtm push'`
+
+Pushes timetracker notes and then current branch (setting upstream)
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
     git push
+    failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
+    git push -u origin $(current_branch)
 }
 
 function gtm_steal() {
@@ -851,7 +1033,7 @@ function gtm_config() {
     done
 
     green "Git task manager is configured. "
-    echo "Now run 'git pull' and 'gtm merge' if you don't want problems"
+    echo "Now run '`blue 'git pull'`' and '`blue 'gtm merge'`' if you don't want problems"
 }
 
 #############
@@ -880,7 +1062,7 @@ case $subcommand in
     ;;
     prompt-status)
         if [ "$(git config timetracker.branch)" ]; then 
-            on_status && human_time $(current_time) --short 
+            on_status && echo -n " " && human_time $(current_time) --short 
         else
             printf "%15s" $(date +%T)
         fi
@@ -925,6 +1107,12 @@ case $subcommand in
     summary)
         gtm_summary "$@"
     ;;
+    report)
+        gtm_report "$@"
+    ;;
+    weekly-report)
+        gtm_weekly_report "$@"
+    ;;
     log)
         git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/gtm human-time \1/e" | less -R
     ;;
@@ -936,7 +1124,7 @@ case $subcommand in
         gtm_status
     ;;
     human-time)
-        human_time ${1:?"need time in seconds"}
+        human_time "$@"
     ;;
     addhooks)
         gtm_addhooks
@@ -952,7 +1140,7 @@ case $subcommand in
         git notes --ref timetracker merge "refs/notes/remotes/${1:-origin}/timetracker"
     ;;
     push)
-        gtm_push
+        gtm_push "$@"
     ;;
 # Tasks:
     task)
