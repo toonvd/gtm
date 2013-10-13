@@ -6,6 +6,7 @@ week=$(( $(date +%W) + 1 ))
 until_week=$week
 [[ "$1" =~ [0-9]+ ]] && until_week=$1 && shift
 
+# given the number of week and optionally year, returns the date of it's week monday
 function monday() {
     local week=$1
     local year=${2:-$(date +%Y)}
@@ -14,6 +15,7 @@ function monday() {
     date -d "$year-01-01 -$((fst_week_day - 1)) day +$(($week - 1)) week" +%F
 }
 
+# the same as monay function +6 days
 function sunday() {
     date -d "$(monday $*) +6 day" +%F
 }
@@ -65,7 +67,7 @@ function list() {
 
 starting_point=$(pwd)
 
-printf "$header"
+echo -n "$header"
 
 until (( $week > $until_week )); do
 	list $week "$@"
