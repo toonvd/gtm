@@ -580,7 +580,7 @@ This file can also redefine format options: `green header`, `green week_format`,
 
     local starting_point=$(pwd)
 
-    printf "$header"
+    echo -e "$header"
 
     until (( $week > $until_week )); do
         list $week "$@"
