@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.7.0"
+VERSION="0.7.1"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -83,8 +83,8 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Timer commands'`:
     `green start` <[+-]time>      -- start timer (setting time if given)
     `green stop` <[+-]time>       -- pause timer (setting time if given)
-    `green set` <[+-]time>        -- set/add/subtract spent time (see help for time formats); `green set` word can be ommited
-    `green status` [flags]        -- show current timer state (see `blue 'gtm help status'` for possible flags)
+    `green set` <[+-]time>        -- set/add/subtract spent time (see help for the time formats); `green set` word can be ommited
+    `green status` [flags]        -- show current timer state
     `green timesince`             -- set time spent since last commit
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
@@ -109,7 +109,8 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
     `green connect` [options]     -- transform bound issue to pull-request if possible
-    `green info`                  -- show info about task branch, timer and the bound issue 
+    `green info` [-w]             -- show info about task branch, timer and the bound issue 
+    `green comment` [-w]          -- comment issue bound to the current task
     `green switch` <number>       -- switch between tasks by issue number
     `green close`                 -- close current task
 
@@ -118,7 +119,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 function show_help {
     (( $# == 0 )) && echo "$general_help" && exit 0
     case $1 in
-        status|set|add|start|stop|amend|task|connect|info|switch|close|report|weekly-report|push)
+        status|set|add|start|stop|amend|task|connect|info|comment|switch|close|report|weekly-report|push)
             gtm $1 --help
         ;;
         *)
@@ -970,9 +971,9 @@ Switches to the task with given issue number (just does 'git checkout' to the co
 
 function gtm_task_info() {
     local help_msg="
-`bold Usage`: `blue 'gtm show'` `green '[-w]'`
+`bold Usage`: `blue 'gtm info'` `green '[options]'`
 
-Shows issue which is bound to the current task ('`green -w`' option works as in ghi: open issue in web-browser)
+Shows issue which is bound to the current task. See possible options in `blue 'ghi help show'`.
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
@@ -980,8 +981,22 @@ Shows issue which is bound to the current task ('`green -w`' option works as in 
     echo
     local issue=$(git config branch.$(current_branch).issue)
     [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
-    [ "$1" == "-w" ] && web="-w"
-    ghi show $issue $web
+    ghi show $issue "$@"
+}
+
+function gtm_task_comment() {
+    local help_msg="
+`bold Usage`: `blue 'gtm comment'` `green '[options]'`
+
+Opens default editor to comment the issue, bound to the current task. See possible options in `blue 'ghi help comment'`.
+"
+    case $1 in -h|--help) echo "$help_msg" && exit ;; esac
+
+    echo "Task `blue "[$(current_branch)]"`: `gtm_status`" 
+    echo
+    local issue=$(git config branch.$(current_branch).issue)
+    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
+    ghi comment $issue "$@"
 }
 
 function gtm_addhooks() {
@@ -1157,6 +1172,9 @@ case $subcommand in
     ;;
     info)
         gtm_task_info "$@"
+    ;;
+    comment)
+        gtm_task_comment "$@"
     ;;
     *)
         t=$(parse_time $subcommand) 
