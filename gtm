@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.7.1"
+VERSION="0.7.2"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -946,6 +946,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     git tag "archive/$task" "$task"
     git branch -d $task
     git push --tag
+    git push origin --delete $task
     failed $? "Couldn't delete branch [$task]"
     echo
     ghi show $issue
