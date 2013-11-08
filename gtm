@@ -1108,6 +1108,10 @@ case $subcommand in
         gtm_set "$@"
         gtm_status
     ;;
+    +|-)
+        gtm_set "${subcommand}$@"
+        gtm_status
+    ;;
     list)
         gtm_list "$@"
     ;;
