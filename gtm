@@ -790,10 +790,8 @@ Creates a task combining given branch and issue:
     [ "$issue_flag" == "-i" ] && ghi show $issue
     confirm
 
-    if [ ! "$exists" ]; then
-        git checkout -b $name &> /dev/null
-        git config branch.$name.base ${base:master}
-    fi
+    [ "$exists" ] && git checkout $name &> /dev/null || git checkout -b $name &> /dev/null
+    git config branch.$name.base ${base:master}
 
     # issue binding
     case $issue_flag in
