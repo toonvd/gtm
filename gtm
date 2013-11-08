@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.7.3"
+VERSION="0.7.4"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
