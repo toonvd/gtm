@@ -717,6 +717,10 @@ function gtm_steal() {
 function gtm_undo() {
     local n=${1:-1}
     local timers=$(git log -$n --format="%N"  | grep "Time-spent:" | sed 's/ *Time-spent: *//')
+    echo `green "You are going to undo following commits:"`
+    echo
+    gtm log -$n | cat
+    confirm
     git reset --soft HEAD~$n
 
     local total=0
