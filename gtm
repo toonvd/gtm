@@ -691,6 +691,7 @@ Pushes timetracker notes and then current branch (setting upstream)
     git push
     failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
     git push -u origin $(current_branch)
+    [ "$1" == "--tag" ] || [ "$1" == "-t" ] && git push --tag
 }
 
 function gtm_steal() {
