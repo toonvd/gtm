@@ -102,6 +102,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Commits related commands'`:
     `green undo`   [<number>]     -- (soft) reset given number of commits (1 by default) and return their time
     `green amend`  [<commit_sha>] -- set currently spent time to the given commit (HEAD by default)
+    `green note`   \"<message>\"  -- alias for empty commit with given message
     `green delete` [<commit_sha>] -- delete timer note of given commit (HEAD by default)
     `green merge`  [<remote>]     -- merge timetracker notes from remote branch (origin by default)
     `green push`                  -- pushes current branch (setting upstream) and pushes timetracker notes
@@ -659,6 +660,13 @@ Adds or substracts time (without changing timer running state)
     spent_set $(( $(spent_get) + $t ))
 }
 
+function gtm_note() {
+    local msg=$1
+    shift
+    [ ! "$msg" ] && err "You should provide a message for the commit"
+    git commit --allow-empty -m "$msg" "$@"
+}
+
 function gtm_amend() {
     local help_msg="
 `bold Usage`: `blue 'gtm amend'` `green '[<commit_sha>]'`
@@ -682,9 +690,9 @@ Sets currently spent time to the commit with given sha (HEAD by default)
 
 function gtm_push() {
     local help_msg="
-`bold Usage`: `blue 'gtm push'`
+`bold Usage`: `blue 'gtm push [--tag|-t]'`
 
-Pushes timetracker notes and then current branch (setting upstream)
+Pushes timetracker notes, then current branch (setting upstream) and tags (with `green --tag` option)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
@@ -1126,6 +1134,9 @@ case $subcommand in
     ;;
     delete)
         git notes --ref timetracker remove ${1:-HEAD}
+    ;;
+    note)
+        gtm_note "$@"
     ;;
     summary)
         gtm_summary "$@"
