@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.7.4"
+VERSION="0.7.5"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -661,10 +661,11 @@ Adds or substracts time (without changing timer running state)
 }
 
 function gtm_note() {
-    local msg=$1
-    shift
-    [ ! "$msg" ] && err "You should provide a message for the commit"
-    git commit --allow-empty -m "$msg" "$@"
+    if [[ "$1" =~ ^- ]] || (( $# == 0 )); then
+        git commit --allow-empty "$@"
+    else
+        git commit --allow-empty -m "$@"
+    fi
 }
 
 function gtm_amend() {
