@@ -148,3 +148,5 @@ For other commands and information use `gtm help`. If something is unclear or in
 Originally, it was a fork of [gtt (git time tracker) tool](http://gitorious.org/gtt/gtt) by Daniel Garcia Moreno and Eduardo Robles Elvira, but then I think, I've rewritten it almost from scratch.
 
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/27313b5f86976621be0037ff3a5b15f9 "githalytics.com")](http://githalytics.com/laughedelic.github.io/gtm)
+
+<a href="http://twitter.com/home/?status=Thanks @%40laughedelic for making gtm: https%3A%2F%2Fgithub.com%2Flaughedelic%2Fgtm"><img src="https://s3.amazonaws.com/github-thank-you-button/thank-you-button.png" alt="Say Thanks" /></a>
