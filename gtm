@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.7.5"
+VERSION="0.8.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -92,6 +92,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 
 `bold 'Information commands'`:
     `green list`                  -- list all tasks with issue numbers and timers information
+    `green tree`                  -- prints the tree of branches with respect to their base branches
     `green log`                   -- same as git-log but with human-format time notes
     `green summary`               -- print summary of spent time by authors
     `green report` [options]      -- print list of commits with time information and summary
@@ -422,6 +423,31 @@ function gtm_list() {
             printf  "%${rwidth}s"  "$spent"
         fi
         echo
+    done
+}
+
+function full_name() {
+    local br="$1" # branch name
+    local acc="$2" # accumulated full name
+    local base="$(git config branch.$br.base)"
+    if [ ! "$base" ]; then 
+        git config branch.$br.base master
+        base="master"
+    fi
+    if [ "$br" == "master" ]; then echo "$br:$acc"
+    else full_name "$base" "$br:$acc"
+    fi
+}
+
+function gtm_tree() {
+    local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
+    # local branches=$(git config --get-regexp "^branch.*.base" | cut -d . -f 2)
+    local current_branch=$(current_branch)
+    local list=$(for branch in $branches; do echo $(full_name $branch); done | sort)
+    for br in $list; do 
+        local cutbr=${br%:}
+        echo -n $cutbr | sed 's/[^:]\+:\([^:]\+\)$/└── \1/g' | sed 's/[^:]\+:/    /g'
+        [ "${cutbr##*:}" == "$(current_branch)" ] && echo " *" || echo
     done
 }
 
@@ -990,7 +1016,7 @@ Shows issue which is bound to the current task. See possible options in `blue 'g
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    echo "Task `blue "[$(current_branch)]"`: `gtm_status`" 
+    echo "Task `blue "[$(current_branch)]"` from `red "[$(git config branch.$(current_branch).base)]"`: `gtm_status`" 
     echo
     local issue=$(git config branch.$(current_branch).issue)
     [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
@@ -1123,6 +1149,9 @@ case $subcommand in
     ;;
     list)
         gtm_list "$@"
+    ;;
+    tree)
+        gtm_tree "$@"
     ;;
     undo)
         gtm_undo "$@"
