@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.8.0"
+VERSION="0.9.0"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -111,6 +111,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
     `green connect` [options]     -- transform bound issue to pull-request if possible
+    `green issue-to-pull-request` -- the same as connect
     `green info` [-w]             -- show info about task branch, timer and the bound issue 
     `green comment` [-w]          -- comment issue bound to the current task
     `green switch` <number>       -- switch between tasks by issue number
@@ -719,14 +720,31 @@ function gtm_push() {
     local help_msg="
 `bold Usage`: `blue 'gtm push [--tag|-t]'`
 
-Pushes timetracker notes, then current branch (setting upstream) and tags (with `green --tag` option)
+* pushes timetracker notes, 
+* then pushes current branch (setting upstream if needed) 
+* then tags (with `green --tag` option)
+* connects this branch to the issue if needed (see `blue 'gtm help connect'`)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
+    echo "Pushing timetracker notes: "
     git push
     failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
-    git push -u origin $(current_branch)
+
+    echo "Pushing current branch: "
+    local set_upstream=""
+    local upstream=$(git for-each-ref --format='%(upstream:short)' $(git symbolic-ref -q HEAD))
+    [ ! "$upstream" ] && set_upstream="-u"
+    git push $set_upstream origin $(current_branch)
     [ "$1" == "--tag" ] || [ "$1" == "-t" ] && git push --tag
+
+    local issue=$(git config branch.$(current_branch).issue)
+    if [ ! "$issue" ]; then
+        echo $(red "This branch is not connected to any issue. Try `blue 'gtm connect -i <issue>'`")
+    else
+        local connected=$(git config branch.$(current_branch).connected)
+        [ ! "$connected" == "true" ] && gtm connect
+    fi
 }
 
 function gtm_steal() {
@@ -896,10 +914,18 @@ By default
 
     git config branch.$task.issue $issue
     echo "`green Issue` `yellow \#$issue` `green "is assigned to the task"` `blue [$task]`"
-    ghi edit --head $task --base $base $issue
-    if (( $? != 0 )); then 
-        red "Couldn't transform issue to pull-request. "
-        echo "Push commits and try to connect again"
+    local check=$(ghi show $issue | grep "^↑$issue:")
+    if [ "$check" ]; then
+        echo "This task is already connected to a pull-request"
+        git config branch.$task.connected true
+    else
+        ghi edit --head $task --base $base $issue
+        if (( $? != 0 )); then 
+            red "Couldn't transform issue to pull-request. "
+            echo "Either it's already a pull-request, or you didn't push anything yet. Try `blue 'gtm push'`."
+        else
+            git config branch.$task.connected true
+        fi
     fi
 }
 
@@ -911,9 +937,8 @@ Closes current task in several steps:
 
 `bold 1.` Try to merge task branch into base branch
 `bold 2.` Push task branch
-`bold 3.` Transform bound issue into a pull-request
-`bold 4.` Push base branch and timetracker notes (it will close the issue)
-`bold 5.` Archive task branch and move the time remained on it to the base branch
+`bold 3.` Push base branch and timetracker notes (it will close the issue)
+`bold 4.` Archive task branch and move the time remained on it to the base branch
 
 By default `green '<base_branch>'` is master and `green '<issue_number>'` is the issue assigned to the current task
 "
@@ -954,10 +979,9 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     fi
     local step1="`bold 1.` Try to merge `blue [$task]` into `green [$base]`"
     local step2="`bold 2.` Push `blue [$task]` branch"
-    local step3="`bold 3.` Transform issue `yellow \#${issue}` into a pull-request"
-    local step4="`bold 4.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
-    local step5="`bold 5.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
-    overview "$step1" "$step2" "$step3" "$step4" "$step5" 
+    local step3="`bold 3.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
+    local step4="`bold 4.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
+    overview "$step1" "$step2" "$step3" "$step4" 
     echo
     echo "$step1"
     git checkout $base
@@ -969,16 +993,12 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     failed $? "Couldn't push [$task] branch to remote origin"
     echo
     echo "$step3"
-    gtm_task_connect -t $task -b $base -i $issue
-    failed $?
-    echo
-    echo "$step4"
     git push origin $base
     failed $? "Couldn't push [$base] branch to remote origin"
     git push
     failed $? "Couldn't push timetracker notes"
     echo
-    echo "$step5"
+    echo "$step4"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
     # git checkout $base > /dev/null
     git tag "archive/$task" "$task"
