@@ -731,7 +731,6 @@ function gtm_push() {
     git push
     failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
 
-    echo
     echo "Pushing current branch: "
     local set_upstream=""
     local upstream=$(git for-each-ref --format='%(upstream:short)' $(git symbolic-ref -q HEAD))
@@ -938,9 +937,8 @@ Closes current task in several steps:
 
 `bold 1.` Try to merge task branch into base branch
 `bold 2.` Push task branch
-`bold 3.` Transform bound issue into a pull-request
-`bold 4.` Push base branch and timetracker notes (it will close the issue)
-`bold 5.` Archive task branch and move the time remained on it to the base branch
+`bold 3.` Push base branch and timetracker notes (it will close the issue)
+`bold 4.` Archive task branch and move the time remained on it to the base branch
 
 By default `green '<base_branch>'` is master and `green '<issue_number>'` is the issue assigned to the current task
 "
@@ -981,10 +979,9 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     fi
     local step1="`bold 1.` Try to merge `blue [$task]` into `green [$base]`"
     local step2="`bold 2.` Push `blue [$task]` branch"
-    local step3="`bold 3.` Transform issue `yellow \#${issue}` into a pull-request"
-    local step4="`bold 4.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
-    local step5="`bold 5.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
-    overview "$step1" "$step2" "$step3" "$step4" "$step5" 
+    local step3="`bold 3.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
+    local step4="`bold 4.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
+    overview "$step1" "$step2" "$step3" "$step3" "$step4" 
     echo
     echo "$step1"
     git checkout $base
@@ -996,16 +993,12 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     failed $? "Couldn't push [$task] branch to remote origin"
     echo
     echo "$step3"
-    gtm_task_connect -t $task -b $base -i $issue
-    failed $?
-    echo
-    echo "$step4"
     git push origin $base
     failed $? "Couldn't push [$base] branch to remote origin"
     git push
     failed $? "Couldn't push timetracker notes"
     echo
-    echo "$step5"
+    echo "$step4"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
     # git checkout $base > /dev/null
     git tag "archive/$task" "$task"
