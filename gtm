@@ -731,19 +731,31 @@ function gtm_push() {
     git push
     failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
 
+    echo
     echo "Pushing current branch: "
     local set_upstream=""
     local upstream=$(git for-each-ref --format='%(upstream:short)' $(git symbolic-ref -q HEAD))
     [ ! "$upstream" ] && set_upstream="-u"
     git push $set_upstream origin $(current_branch)
-    [ "$1" == "--tag" ] || [ "$1" == "-t" ] && git push --tag
+    
+    if [ "$1" == "--tag" ] || [ "$1" == "-t" ]; then
+        echo
+        echo "Pushing tags:"
+        git push --tag
+    fi
 
-    local issue=$(git config branch.$(current_branch).issue)
-    if [ ! "$issue" ]; then
-        echo $(red "This branch is not connected to any issue. Try `blue 'gtm connect -i <issue>'`")
-    else
-        local connected=$(git config branch.$(current_branch).connected)
-        [ ! "$connected" == "true" ] && gtm connect
+    if [ ! "$(current_branch)" == "master" ]; then
+        echo
+        local issue=$(git config branch.$(current_branch).issue)
+        if [ ! "$issue" ]; then
+            echo $(red "This branch is not connected to any issue. Try `blue 'gtm connect -i <issue>'`")
+        else
+            local connected=$(git config branch.$(current_branch).connected)
+            if [ ! "$connected" == "true" ]; then
+                echo "Connecting the branch with issue `yellow \#$issue`"
+                gtm connect
+            fi
+        fi
     fi
 }
 
