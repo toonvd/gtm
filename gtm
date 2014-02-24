@@ -981,7 +981,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     local step2="`bold 2.` Push `blue [$task]` branch"
     local step3="`bold 3.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
     local step4="`bold 4.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
-    overview "$step1" "$step2" "$step3" "$step3" "$step4" 
+    overview "$step1" "$step2" "$step3" "$step4" 
     echo
     echo "$step1"
     git checkout $base
