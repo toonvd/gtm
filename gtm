@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.9.0"
+VERSION="0.9.1"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -139,8 +139,7 @@ echo '#!/bin/bash
 # check if the timer is not zero
 time=$(gtm status --seconds)
 if (( $time == 0 )); then
-    echo "`tput setaf 1`You forgot to set the timer!`tput sgr0`"
-    exit 1
+    echo "`tput setaf 1`You forgot to set the timer!`tput sgr0` See 'gtm help amend'"
 fi'
 }
 

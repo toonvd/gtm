@@ -2,6 +2,8 @@
 
 It is a tool for tracking time, that you spend on commits in your git repositories and managing tasks.
 
+![TODOs by CodeNotes](http://codenotes.me/badge/8855986/todos.png)
+
 ## Usage
 
 ### Time tracking
