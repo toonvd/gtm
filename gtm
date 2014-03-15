@@ -357,7 +357,7 @@ Shows current timer state. Optional flags are
             --seconds)   local seconds=1;;
             -s|--short)  local short="--short";;
             --no-label)  local no_label=1;;
-            *) err "Wrong option: $1" "$help_msg";;
+            *) err "Wrong option: $1" "See 'gtm help status'";;
         esac
         shift
     done
@@ -489,7 +489,7 @@ Shows list of commits which have time information. Optional flags are
         case $1 in
             -w|--week)
                 [[ "$2" =~ [^0-9] ]] || (( $2 < 1 )) || (( $2 > 53 )) && \
-                    err "Wrong argument for $1: should be a week number (1..53)" "$help_msg"
+                    err "Wrong argument for $1: should be a week number (1..53)" "See 'gtm help report'"
                 local current_week=$(( $(date +%W) + 1 ))
                 (( $2 > $current_week )) && err "It's not a fortune teller, current week is $current_week ($(monday $current_week) - $(sunday $current_week))"
                 local mon=$(date -d "$(monday $2) -1 day" +%F)
@@ -498,7 +498,7 @@ Shows list of commits which have time information. Optional flags are
                 shift
                 ;;
             -f|--format)
-                [ ! "$2" ] && err "Need an argument for $1: format with placeholder for time" "$help_msg"
+                [ ! "$2" ] && err "Need an argument for $1: format with placeholder for time" "See 'gtm help report'"
                 local format=$2
                 shift
                 ;;
@@ -659,7 +659,7 @@ Sets, adds (with +) or subtracts (with -) given amount of time (without changing
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
-    [[ $t =~ Wrong ]] && err "Wrong time format" "$help_msg"
+    [[ $t =~ Wrong ]] && err "Wrong time format" "See 'gtm help set'"
     if [[ $1 =~ ^[+-] ]]; then
         spent_set $(current_time)
         [ $(start_date) ] && start_from_now
@@ -682,7 +682,7 @@ Adds or substracts time (without changing timer running state)
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local t=$(parse_time $1) 
-    [[ $t =~ Wrong ]] && err "Wrong time format"  "$help_msg"
+    [[ $t =~ Wrong ]] && err "Wrong time format" "See 'gtm help set'"
     spent_set $(( $(spent_get) + $t ))
 }
 
@@ -766,7 +766,7 @@ function gtm_steal() {
             local branch=$(git config --get-regexp "branch.*.issue" | grep " $issue$")
             branch=${branch#branch.}
             branch=${branch%.issue $issue}
-            [ ! "$branch" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing."
+            [ ! "$branch" ] && gtm_list && err "No task #$issue. Create a new one or choose from existing"
         ;;
         -b)
             local branch=$2
@@ -820,11 +820,11 @@ Creates a task combining given branch and issue:
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
     local name=$1
-    [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)" "$help_msg"
+    [ ! "$name" ] && err "Need a branch name for creating task (use '-' for current branch)" "See 'gtm help task'"
     [ "$name" == "-" ] && name=$(current_branch)
 
     local issue_flag=$2
-    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong issue flag: $issue_flag" "$help_msg"
+    [ "$issue_flag" != "-i" ] && [ "$issue_flag" != "-m" ] && err "Wrong issue flag: $issue_flag" "See 'gtm help task'"
     local issue=$3
 
     local prefix=${name%/*}
@@ -895,21 +895,21 @@ By default
     while (( $# )); do
         case $1 in
             -t)
-                [ ! $2 ] && err "Need an argument for -t: task that you want to connect" "$help_msg"
+                [ ! $2 ] && err "Need an argument for -t: task that you want to connect" "See 'gtm help connect'"
                 local task=$2
                 [ ! "$(echo $branches | grep "$task")" ] && err "Task [$task] doesn't exist:" "$(gtm_list)"
                 ;;
             -b)
-                [ ! $2 ] && err "Need an argument for -b: base branch name" "$help_msg"
+                [ ! $2 ] && err "Need an argument for -b: base branch name" "See 'gtm help connect'"
                 local base=$2
                 [ ! "$(echo $branches | grep "$base")" ] && err "Branch [$base] doesn't exist:" "$(git branch)"
                 ;;
             -i)
-                [ ! $2 ] && err "Need an argument for -i: issue number" "$help_msg"
+                [ ! $2 ] && err "Need an argument for -i: issue number" "See 'gtm help connect'"
                 local issue=$2
                 ;;
             *)
-                err "Wrong options: $*" "$help_msg" 
+                err "Wrong options: $*" "See 'gtm help connect'" 
                 ;;
         esac
         shift 2
@@ -965,17 +965,17 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     while (( $# )); do
         case $1 in
             -b)
-                [ ! $2 ] && err "Need an argument for -b: base branch name" "$help_msg"
+                [ ! $2 ] && err "Need an argument for -b: base branch name" "See 'gtm help close'"
                 local base=$2
                 [ ! "$(echo $branches | grep "$base")" ] && err "Branch [$base] doesn't exist:" "$(git branch)"
                 ;;
             -i)
-                [ ! $2 ] && err "Need an argument for -i: issue number" "$help_msg"
+                [ ! $2 ] && err "Need an argument for -i: issue number" "See 'gtm help close'"
                 local issue=$2
                 git config branch.$task.issue $issue
                 ;;
             *)
-                err "Wrong options: $*" "$help_msg" 
+                err "Wrong options: $*" "See 'gtm help close'" 
                 ;;
         esac
         shift 2
@@ -1050,7 +1050,7 @@ Shows issue which is bound to the current task. See possible options in `blue 'g
     echo "Task `blue "[$(current_branch)]"` from `red "[$(git config branch.$(current_branch).base)]"`: `gtm_status`" 
     echo
     local issue=$(git config branch.$(current_branch).issue)
-    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
+    [ ! "$issue" ] && err "No issue is bound to the task" "See 'gtm help connect'"
     ghi show $issue "$@"
 }
 
@@ -1065,7 +1065,7 @@ Opens default editor to comment the issue, bound to the current task. See possib
     echo "Task `blue "[$(current_branch)]"`: `gtm_status`" 
     echo
     local issue=$(git config branch.$(current_branch).issue)
-    [ ! "$issue" ] && err "No issue is bound to the task. See 'gtm help connect'"
+    [ ! "$issue" ] && err "No issue is bound to the task" "See 'gtm help connect'"
     ghi comment $issue "$@"
 }
 
@@ -1099,7 +1099,7 @@ function gtm_addhooks() {
 function gtm_config() {
     local remote=${1:-origin}
     local branches=$(git for-each-ref refs/heads/ --format='%(refname:short)')
-    [ ! "$branches" ] && err "Looks like an empty repository. Make an init commit and try again."
+    [ ! "$branches" ] && err "Looks like an empty repository" "Make an init commit and try again."
 
     local push="refs/notes/timetracker:refs/notes/timetracker"
     local exists=$(git config --get-all remote.$remote.push | grep "$push")
