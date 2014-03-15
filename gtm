@@ -988,26 +988,24 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
         echo " Choose one of existing and use '-i <number>' option or create a new one"
         ghi list && exit 1
     fi
-    local step1="`bold 1.` Try to merge `blue [$task]` into `green [$base]`"
-    local step2="`bold 2.` Push `blue [$task]` branch"
-    local step3="`bold 3.` Push `green [$base]` branch and timetracker notes (it will close issue `yellow \#${issue}`)"
+    local step1="`bold 1.` Push `blue [$task]` branch with timetracker notes"
+    local step2="`bold 2.` Try to merge `blue [$task]` into `green [$base]`"
+    local step3="`bold 3.` Push `green [$base]` branch (it will close issue `yellow \#${issue}`)"
     local step4="`bold 4.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
     overview "$step1" "$step2" "$step3" "$step4" 
     echo
     echo "$step1"
-    git checkout $base
-    git merge --no-ff $task
-    failed $? "Couldn't merge branch [$task] into [$base]"
+    gtm push
+    failed $? "Couldn't push [$task] branch to remote origin"
     echo
     echo "$step2"
-    git push -u origin $task
-    failed $? "Couldn't push [$task] branch to remote origin"
+    git checkout $base
+    git merge --no-ff $task
+    (( $? != 0 )) && err "Couldn't merge branch [$task] into [$base]" "If there are merge conflicts, resolve them and then do 'git checkout -' and 'gtm close' again"
     echo
     echo "$step3"
     git push origin $base
     failed $? "Couldn't push [$base] branch to remote origin"
-    git push
-    failed $? "Couldn't push timetracker notes"
     echo
     echo "$step4"
     spent_set $(( $(spent_get) + $(git config branch.$task.spent) ))
