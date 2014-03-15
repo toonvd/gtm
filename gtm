@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.9.1"
+VERSION="0.9.2"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -1117,8 +1117,10 @@ function gtm_config() {
         spent_get $branch &> /dev/null
     done
 
-    green "Git task manager is configured. "
-    echo "Now run '`blue 'git pull'`' and '`blue 'gtm merge'`' if you don't want problems"
+    green "Git task manager is configured\n"
+    echo "Trying to fetch and merge remote timetracker notes..."
+    git fetch origin notes/timetracker:notes/timetracker
+    gtm merge
 }
 
 #############
