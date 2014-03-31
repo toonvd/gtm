@@ -1,8 +1,7 @@
-`gtm` is a **g**it **t**ask **m**anager (or **t**ime **m**anager, if you don't like tasks).
+`gtm` is a git task/time manager
 
-It is a tool for tracking time, that you spend on commits in your git repositories and managing tasks.
+It is a tool for tracking time that you spend on commits in your git repositories and managing branches as tasks with Github issues.
 
-![TODOs by CodeNotes](http://codenotes.me/badge/8855986/todos.png)
 
 ## Usage
 
