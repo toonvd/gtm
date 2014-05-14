@@ -2,6 +2,7 @@
 
 It is a tool for tracking time that you spend on commits in your git repositories and managing branches as tasks with Github issues.
 
+[![Gitter chat](https://badges.gitter.im/laughedelic/gtm.png)](https://gitter.im/laughedelic/gtm)
 
 ## Usage
 
@@ -150,4 +151,5 @@ Originally, it was a fork of [gtt (git time tracker) tool](http://gitorious.org/
 
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/27313b5f86976621be0037ff3a5b15f9 "githalytics.com")](http://githalytics.com/laughedelic.github.io/gtm)
 
-<a href="http://twitter.com/home/?status=Thanks @laughedelic for making gtm: https%3A%2F%2Fgithub.com%2Flaughedelic%2Fgtm"><img src="https://s3.amazonaws.com/github-thank-you-button/thank-you-button.png" alt="Say Thanks" /></a>
+If you want to ask/discuss something which is not a feature request or issue, you're welcome in the gitter chat:
+[![Gitter chat](https://badges.gitter.im/laughedelic/gtm.png)](https://gitter.im/laughedelic/gtm)
