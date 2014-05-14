@@ -68,7 +68,7 @@ If you already have a branch and want to bind and issue to it just do the same (
 
 When you made some commits to the task branch and pushed them to remote you should do
 ```bash
-$ gtm connect
+$ gtm push
 ```
 it will make a pull-request from the bound issue, so that you will see all your commits related to this task in that issue.
 
@@ -84,8 +84,8 @@ For example, we plan a meeting: somebody creates an issue mentioning others and 
 
 - create a task and connect it to that issue
 - start timer right before going to the meeting and stop it after it's ended
-- make an empty commit like `git commit --allow-empty -m "Meeting with @mrproper and @bert: value of the universe"`
-- push it and do `gtm connect`
+- make an empty commit like `gtm note "Meeting with @mrproper and @bert: value of the universe"`
+- push it with `gtm push`
 - others also do time tracking commits to this branch, push them and comment on meeting summary in the issue, if it's needed
 - somebody does `gtm close`, when discussion is finished
 
