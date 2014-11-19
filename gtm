@@ -61,9 +61,10 @@ failed() {
     local msg=${2:-"Previous step has failed"}
     if (( $result != 0 )); then
         echo `red "$msg"`
-        read -n 1 -p "[press Ctrl-C to stop or any other key to continue]"
-        tput cuu1 && tput el
-        echo
+        local decision
+        read -p "[enter 'continue' to proceed or anything else to stop]: " decision
+            tput cuu1 && tput el
+        [ "$decision" != "continue" ] && exit 0
     fi
 }
 
@@ -726,7 +727,7 @@ function gtm_push() {
 
     echo "Pushing timetracker notes: "
     git push
-    failed $? "Some issues with pushing timetracker notes.$trst May be you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
+    failed $? "Some issues with pushing timetracker notes.$trst Maybe you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
 
     echo
     echo "Pushing current branch: "
