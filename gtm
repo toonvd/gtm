@@ -8,7 +8,7 @@
 # GNU General Public License version 3 or any later version, incorporated
 # herein by reference.
 
-VERSION="0.9.3"
+VERSION="0.9.4"
 
 export GIT_NOTES_DISPLAY_REF="refs/notes/timetracker"
 
@@ -77,15 +77,14 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'General commands'`:
     `green 'usage|-h|--help|help'`  -- show this mesage
     `green 'version|-v|--version'`  -- show current version
-    `green init`                  -- set gtm configuration (hooks and git-config); run this in every new repository
+    `green init`                  -- set up gtm configuration (hooks and git-config); run this in every new repository
     `green repo`                  -- (path to) the repository of the current running timer
 
 `bold 'Timer commands'`:
+    <[+-]time>            -- set/add/subtract spent time (see help for the time formats)
     `green start` <[+-]time>      -- start timer (setting time if given)
     `green stop` <[+-]time>       -- pause timer (setting time if given)
-    `green set` <[+-]time>        -- set/add/subtract spent time (see help for the time formats); `green set` word can be ommited
     `green status` [flags]        -- show current timer state
-    `green timesince`             -- set time spent since last commit
     `green steal`                 -- steal all time from another task (master by default) and move it to the current task
           [-i <issue>]       pick task by issue number
        or [-b <branch>]      pick task by branch name
@@ -111,7 +110,6 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
     `green connect` [options]     -- transform bound issue to pull-request if possible
-    `green issue-to-pull-request` -- the same as connect
     `green info` [-w]             -- show info about task branch, timer and the bound issue 
     `green comment` [-w]          -- comment issue bound to the current task
     `green switch` <number>       -- switch between tasks by issue number
@@ -648,7 +646,7 @@ function parse_time() {
 
 function gtm_set() {
     local help_msg="
-`bold Usage`: `blue 'gtm set'` `green '<[+-]time>'` or just `blue 'gtm'` `green '<[+-]time>'`
+`bold Usage`: `blue 'gtm'` `green '<[+-]time>'`
 
 Sets, adds (with +) or subtracts (with -) given amount of time (without changing running state of the timer)
 `green '<time>'` may be in one of the following formats:
@@ -752,7 +750,7 @@ function gtm_push() {
             local connected=$(git config branch.$(current_branch).connected)
             if [ ! "$connected" == "true" ]; then
                 echo "Connecting the branch with issue `yellow \#$issue`"
-                gtm connect
+                gtm_task_connect
             fi
         fi
     fi
@@ -1170,10 +1168,6 @@ case $subcommand in
     status)
         gtm_status "$@"
     ;;
-    set)
-        gtm_set "$@"
-        gtm_status
-    ;;
     +|-)
         gtm_set "${subcommand}$@"
         gtm_status
@@ -1211,13 +1205,6 @@ case $subcommand in
     log)
         git log --color "$@" | sed "s/Time-spent: \([0-9]\+\)/gtm human-time \1/e" | less -R
     ;;
-    timesince)
-        current_date=$(date +%s)
-        last=$(git log HEAD~${1:-0} -1 --format=%ct)
-        t=$(( current_date - last ))
-        gtm_set $(( $t / 60 ))
-        gtm_status
-    ;;
     human-time)
         human_time "$@"
     ;;
@@ -1241,14 +1228,14 @@ case $subcommand in
     task)
         gtm_task_new "$@"
     ;;
-    connect)
-        gtm_task_connect "$@"
-    ;;
     close)
         gtm_task_close "$@"
     ;;
     switch)
         gtm_task_switch "$@"
+    ;;
+    connect)
+        gtm_task_connect "$@"
     ;;
     info)
         gtm_task_info "$@"
