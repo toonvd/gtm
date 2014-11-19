@@ -725,6 +725,10 @@ function gtm_push() {
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
+    echo "Pulling timetracker notes: "
+    git fetch origin "+refs/notes/timetracker:refs/notes/remotes/origin/timetracker"
+    gtm merge
+
     echo "Pushing timetracker notes: "
     git push
     failed $? "Some issues with pushing timetracker notes.$trst Maybe you should first run '`blue 'git pull'`' (+ '`blue 'gtm merge'`' if needed)"
