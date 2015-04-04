@@ -33,7 +33,7 @@ underline() { txtsurround $tund "$@"; }
 
 # some common printing functions
 err() {
-    red "$1\n" 
+    red "$1\n"
     [ "$2" ] && echo "$2"
     exit 1
 }
@@ -111,7 +111,7 @@ gtm v$VERSION - git task/time manager (c) Alexey Alekhin
 `bold 'Task commands'`:
     `green task` <name> <options> -- create new task
     `green connect` [options]     -- transform bound issue to pull-request if possible
-    `green info` [-w]             -- show info about task branch, timer and the bound issue 
+    `green info` [-w]             -- show info about task branch, timer and the bound issue
     `green comment` [-w]          -- comment issue bound to the current task
     `green switch` <number>       -- switch between tasks by issue number
     `green close`                 -- close current task
@@ -213,7 +213,7 @@ function human_time() {
         (( $m < 10 )) && mm="0$m:" || mm="$m:"
         (( $s < 10 )) && ss="0$s"  || ss="$s"
         echo "$hh$mm$ss"
-    else 
+    else
         (( $h > 0 )) && printf "%2d hour"    $h
         (( $h > 1 )) && printf "s " || printf "  "
 
@@ -245,7 +245,7 @@ function sunday() {
 function start_date() { git config timetracker.start; }
 function start_from_now() { git config timetracker.start $(date +%s); }
 
-function spent_get() { 
+function spent_get() {
     local branch=${1:-$(current_branch)}
     local spent=$(git config branch.$branch.spent)
     [ ! $spent ] && git config branch.$branch.spent 0
@@ -368,7 +368,7 @@ Shows current timer state. Optional flags are
     fi
 
     local spent=$(current_time)
-    if [ "$seconds" ]; then 
+    if [ "$seconds" ]; then
         echo $spent && exit 0
     else
         echo -n "$(human_time $spent $short)"
@@ -410,15 +410,15 @@ function gtm_list() {
         local spent=$(human_time $(git config branch.$branch.spent))
         local issue=$(git config branch.$branch.issue)
         if [ "$branch" == "$current_branch" ]
-        then 
+        then
             [ $(start_date) ] && green "* " || red "* "
-            yellow "%-2s " "$issue" 
-            blue "%-${lwidth}s " "[$branch]" 
+            yellow "%-2s " "$issue"
+            blue "%-${lwidth}s " "[$branch]"
             printf  "%${rwidth}s"  "$spent"
             on_status
-        else 
-            yellow "  %-2s " "$issue" 
-            blue "%-${lwidth}s " "[$branch]" 
+        else
+            yellow "  %-2s " "$issue"
+            blue "%-${lwidth}s " "[$branch]"
             printf  "%${rwidth}s"  "$spent"
         fi
         echo
@@ -429,7 +429,7 @@ function full_name() {
     local br="$1" # branch name
     local acc="$2" # accumulated full name
     local base="$(git config branch.$br.base)"
-    if [ ! "$base" ]; then 
+    if [ ! "$base" ]; then
         git config branch.$br.base master
         base="master"
     fi
@@ -443,7 +443,7 @@ function gtm_tree() {
     # local branches=$(git config --get-regexp "^branch.*.base" | cut -d . -f 2)
     local current_branch=$(current_branch)
     local list=$(for branch in $branches; do echo $(full_name $branch); done | sort)
-    for br in $list; do 
+    for br in $list; do
         local cutbr=${br%:}
         echo -n $cutbr | sed 's/[^:]\+:\([^:]\+\)$/└── \1/g' | sed 's/[^:]\+:/    /g'
         [ "${cutbr##*:}" == "$(current_branch)" ] && echo " *" || echo
@@ -545,7 +545,7 @@ function gtm_weekly_report() {
 Shows time reports (as `blue 'gtm report'`) grouped by weeks for a set of projects. You can set a configuration for the report with the following parameter:
  `bold '*'` `green '--projects <file>'` - projects configuration file
 
-This projects mapping file is supposed to be a simple bash script, defining 
+This projects mapping file is supposed to be a simple bash script, defining
  * `green prefix` string — path prefix of your local repositories;
  * `green project` dispatch function — which takes project key and returns a string, that has project name (title) as the first row and the list of repositories as the following rows;
  * `green projects` list — list of projects keys;
@@ -657,7 +657,7 @@ Sets, adds (with +) or subtracts (with -) given amount of time (without changing
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    local t=$(parse_time $1) 
+    local t=$(parse_time $1)
     [[ $t =~ Wrong ]] && err "Wrong time format" "See 'gtm help set'"
     if [[ $1 =~ ^[+-] ]]; then
         spent_set $(current_time)
@@ -665,7 +665,7 @@ Sets, adds (with +) or subtracts (with -) given amount of time (without changing
         t=$(( $(spent_get) + $t ))
         local ht=$(human_time $t --short)
         (( $t < 0 )) && err "Negative time: -${ht##* }"
-        spent_set $t 
+        spent_set $t
     else
         spent_set $t
         [ $(start_date) ] && start_from_now
@@ -680,7 +680,7 @@ Adds or substracts time (without changing timer running state)
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    local t=$(parse_time $1) 
+    local t=$(parse_time $1)
     [[ $t =~ Wrong ]] && err "Wrong time format" "See 'gtm help set'"
     spent_set $(( $(spent_get) + $t ))
 }
@@ -706,7 +706,7 @@ Sets currently spent time to the commit with given sha (HEAD by default)
     gtm_stop > /dev/null
     spent=$(spent_get)
 
-    if [ $spent ]; then 
+    if [ $spent ]; then
         git notes --ref timetracker add -f -m "Time-spent: $spent" $sha
         echo "Time spent: $(human_time $spent)"
         spent_set 0
@@ -718,8 +718,8 @@ function gtm_push() {
     local help_msg="
 `bold Usage`: `blue 'gtm push [--tag|-t]'`
 
-* pushes timetracker notes, 
-* then pushes current branch (setting upstream if needed) 
+* pushes timetracker notes,
+* then pushes current branch (setting upstream if needed)
 * then tags (with `green --tag` option)
 * connects this branch to the issue if needed (see `blue 'gtm help connect'`)
 "
@@ -739,7 +739,7 @@ function gtm_push() {
     local upstream=$(git for-each-ref --format='%(upstream:short)' $(git symbolic-ref -q HEAD))
     [ ! "$upstream" ] && set_upstream="-u"
     git push $set_upstream origin $(current_branch)
-    
+
     if [ "$1" == "--tag" ] || [ "$1" == "-t" ]; then
         echo
         echo "Pushing tags:"
@@ -811,13 +811,13 @@ Creates a task combining given branch and issue:
 
  `bold '*'` `green '<branch_name>'` can be an existing branch (use '`green -`' for current) or a name for new branch
 
- `bold '*'` If you want to bind task to an existing issue, use 
+ `bold '*'` If you want to bind task to an existing issue, use
      `green '-i <number>'`
    else create a new one:
      `green '-m <issue_title>'`
    it will be assigned to you and it will get labels retrieved from the branch name prefix,
    i.e. if branch name is 'feature/topic/name', labels are 'feature' and 'topic'
- 
+
    `green '[issue_options]'` are any options accepted by 'ghi open' (see 'ghi help open')
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
@@ -842,7 +842,7 @@ Creates a task combining given branch and issue:
         local step1="`bold 1.` Use an existing branch `blue [$name]`"
     else
         local base=$(current_branch)
-        local step1="`bold 1.` Create a new branch `blue [$name]` from `red [$base]`" 
+        local step1="`bold 1.` Create a new branch `blue [$name]` from `red [$base]`"
     fi
     case $issue_flag in
         -i)
@@ -870,7 +870,7 @@ Creates a task combining given branch and issue:
         -m)
             local ghi_out=$(ghi open  --claim  $labels  "${@:2}")
             local number=$(echo $ghi_out | grep '#' | sed 's/^#\([0-9]*\):.*$/\1/')
-            if [ "$number" ]; then 
+            if [ "$number" ]; then
                 git config branch.$name.issue $number
                 ghi show $number
                 echo "`green Issue` `yellow \#$number` `green "is assigned to the task"`"
@@ -884,7 +884,7 @@ function gtm_task_connect() {
     local help_msg="
 `bold Usage`: `blue 'gtm connect'` `green '[-t <task_branch>] [-b <base_branch>] [-i <issue_number>]'`
 
-Connects task branch with and issue and transforms it to pull-request 
+Connects task branch with and issue and transforms it to pull-request
 (to merge it into base branch) if possible (i.e. if there are any pushed commits).
 
 By default
@@ -912,7 +912,7 @@ By default
                 local issue=$2
                 ;;
             *)
-                err "Wrong options: $*" "See 'gtm help connect'" 
+                err "Wrong options: $*" "See 'gtm help connect'"
                 ;;
         esac
         shift 2
@@ -934,7 +934,7 @@ By default
         git config branch.$task.connected true
     else
         ghi edit --head $task --base $base $issue
-        if (( $? != 0 )); then 
+        if (( $? != 0 )); then
             red "Couldn't transform issue to pull-request. "
             echo "Either it's already a pull-request, or you didn't push anything yet. Try `blue 'gtm push'`."
         else
@@ -978,7 +978,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
                 git config branch.$task.issue $issue
                 ;;
             *)
-                err "Wrong options: $*" "See 'gtm help close'" 
+                err "Wrong options: $*" "See 'gtm help close'"
                 ;;
         esac
         shift 2
@@ -986,7 +986,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     local base=${base:-$(git config branch.$task.base)}
     base=${base:-master}
     local issue=${issue:-$(git config branch.$task.issue)}
-    if [ ! "$issue" ]; then 
+    if [ ! "$issue" ]; then
         red "Task is not connected to any issue."
         echo " Choose one of existing and use '-i <number>' option or create a new one"
         ghi list && exit 1
@@ -995,7 +995,7 @@ By default `green '<base_branch>'` is master and `green '<issue_number>'` is the
     local step2="`bold 2.` Try to merge `blue [$task]` into `green [$base]`"
     local step3="`bold 3.` Push `green [$base]` branch (it will close issue `yellow \#${issue}`)"
     local step4="`bold 4.` Archive `blue [$task]` task and move the time remained on it to `green [$base]`"
-    overview "$step1" "$step2" "$step3" "$step4" 
+    overview "$step1" "$step2" "$step3" "$step4"
     echo
     echo "$step1"
     gtm push
@@ -1048,7 +1048,7 @@ Shows issue which is bound to the current task. See possible options in `blue 'g
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    echo "Task `blue "[$(current_branch)]"` from `red "[$(git config branch.$(current_branch).base)]"`: `gtm_status`" 
+    echo "Task `blue "[$(current_branch)]"` from `red "[$(git config branch.$(current_branch).base)]"`: `gtm_status`"
     echo
     local issue=$(git config branch.$(current_branch).issue)
     [ ! "$issue" ] && err "No issue is bound to the task" "See 'gtm help connect'"
@@ -1063,7 +1063,7 @@ Opens default editor to comment the issue, bound to the current task. See possib
 "
     case $1 in -h|--help) echo "$help_msg" && exit ;; esac
 
-    echo "Task `blue "[$(current_branch)]"`: `gtm_status`" 
+    echo "Task `blue "[$(current_branch)]"`: `gtm_status`"
     echo
     local issue=$(git config branch.$(current_branch).issue)
     [ ! "$issue" ] && err "No issue is bound to the task" "See 'gtm help connect'"
@@ -1126,7 +1126,7 @@ function gtm_config() {
 
 #############
 
-if (( $# == 0 )); then 
+if (( $# == 0 )); then
     [ ! $(gitdir) ] && show_help && exit 0
     gtm_status && exit 0
 fi
@@ -1149,8 +1149,8 @@ case $subcommand in
         exit 0
     ;;
     prompt-status)
-        if [ "$(git config timetracker.branch)" ]; then 
-            on_status && echo -n " " && human_time $(current_time) --short 
+        if [ "$(git config timetracker.branch)" ]; then
+            on_status && echo -n " " && human_time $(current_time) --short
         else
             printf "%15s" $(date +%T)
         fi
@@ -1249,7 +1249,7 @@ case $subcommand in
         gtm_task_comment "$@"
     ;;
     *)
-        t=$(parse_time $subcommand) 
+        t=$(parse_time $subcommand)
         if [[ ! $t =~ Wrong ]]; then
             gtm_set $subcommand
             gtm_status
