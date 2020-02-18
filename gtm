@@ -283,7 +283,7 @@ function gitdir() { echo "$(git rev-parse --git-dir 2> /dev/null)"; }
 function gitroot() { echo "$(git rev-parse --show-toplevel 2> /dev/null)"; }
 
 ### SUBCOMMANDS
-function gtm_add() {
+function gtm_addf() {
     local path=$1
     git add $path 2> /dev/null
 }
@@ -1239,8 +1239,8 @@ case $subcommand in
     push)
         gtm_push "$@"
     ;;
-    add)
-        gtm_add "$@"
+    addf)
+        gtm_addf "$@"
     ;;
     commit)
         gtm_commit
