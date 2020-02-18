@@ -288,7 +288,7 @@ function gtm_add() {
 }
 
 function gtm_commit() {
-    local issue_number = git config branch.(git rev-parse --abbrev-ref HEAD).issue;
+    local issue_number = git config branch.$(git rev-parse --abbrev-ref HEAD).issue;
     local issue_details = ghi show $issue_number | head -n 1;
     git commit -m "$issue_details"
 }
