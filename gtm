@@ -283,6 +283,15 @@ function gitdir() { echo "$(git rev-parse --git-dir 2> /dev/null)"; }
 function gitroot() { echo "$(git rev-parse --show-toplevel 2> /dev/null)"; }
 
 ### SUBCOMMANDS
+function gtm_add() {
+    git add .
+}
+
+function gtm_commit() {
+    local issue_number = git config branch.(git rev-parse --abbrev-ref HEAD).issue;
+    local issue_details = ghi show $issue_number | head -n 1;
+    git commit -m "$issue_details"
+}
 
 function gtm_start() {
     local help_msg="
@@ -1228,6 +1237,12 @@ case $subcommand in
     ;;
     push)
         gtm_push "$@"
+    ;;
+    add)
+        gtm_add
+    ;;
+    commit)
+        gtm_commit
     ;;
 # Tasks:
     task)
