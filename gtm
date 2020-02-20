@@ -1160,9 +1160,11 @@ case $subcommand in
     ;;
     prompt-status)
         if [ "$(git config timetracker.branch)" ]; then
-            on_status && echo -n " " && human_time $(current_time) --short
-        else
-            printf "%15s" $(date +%T)
+           YEL='\033[0;33m' # YELLOW
+           BG='\e[48;5;236m' # BACKGR
+           BGY='\e[33;5;236m' # BACKGR
+           NC='\033[0m' # No Color
+           printf "${BG}" && on_status && printf "${BG} " && human_time $(current_time) --short && printf " [${BGY}GTM${BG}]${NC}"
         fi
         exit 0
     ;;
